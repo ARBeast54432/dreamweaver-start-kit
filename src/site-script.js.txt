@@ -215,7 +215,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   window.addEventListener('resize',()=>dogs.forEach(d=>moveTo(d,d.x,d.y,9999)));
 
   /* treat button */
-  const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<span aria-hidden="true">🦴</span> GIVE TREATS';
+  const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<svg aria-hidden="true" width="22" height="12" viewBox="0 0 44 24"><path d="M10 4a5 5 0 0 1 9 2h6a5 5 0 1 1 9 4 5 5 0 1 1-9 4h-6a5 5 0 1 1-9-4 5 5 0 0 1 0-6z" fill="#fff" stroke="#14141A" stroke-width="2.5"/></svg> GIVE TREATS';
   document.body.appendChild(btn);
   let bowl=null;
   btn.onclick=()=>{

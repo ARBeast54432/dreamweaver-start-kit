@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,900;1,6..96,900&family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@700&family=Syne:wght@700;800&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,800;1,9..144,800&family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@700&family=Syne:wght@700;800&display=swap" },
       { rel: "stylesheet", href: siteCss },
     ],
   }),
