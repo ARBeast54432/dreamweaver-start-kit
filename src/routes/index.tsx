@@ -1,24 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import siteCss from "../site.css?url";
+import body from "../site-body.html?raw";
+import script from "../site-script.js.txt?raw";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Eeshika Jakka" },
+      { name: "description", content: "Eeshika Jakka. Goalkeeper, science kid, future engineer." },
+      { property: "og:title", content: "Eeshika Jakka" },
+      { property: "og:description", content: "Goalkeeper, science kid, future engineer." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+    links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,900;1,6..96,900&family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@700&family=Syne:wght@700;800&display=swap" },
+      { rel: "stylesheet", href: siteCss },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  useEffect(() => {
+    new Function(script)();
+  }, []);
+  return <div dangerouslySetInnerHTML={{ __html: body }} />;
 }
