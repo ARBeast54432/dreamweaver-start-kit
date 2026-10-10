@@ -26,6 +26,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   useEffect(() => {
+    (window as unknown as { __EJ_DEV__?: boolean }).__EJ_DEV__ = import.meta.env.DEV;
     new Function(script)();
   }, []);
   return <div dangerouslySetInnerHTML={{ __html: body }} />;
