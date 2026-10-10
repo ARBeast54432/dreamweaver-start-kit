@@ -63,7 +63,7 @@ drawCards();
 const P = [[17, 25], [50, 25], [83, 25], [17, 75], [50, 75], [83, 75]];
 const L = ['TOP LEFT', 'TOP MID', 'TOP RIGHT', 'LOW LEFT', 'LOW MID', 'LOW RIGHT'];
 const Q = ['Better luck next time.', 'Not today.', 'Nice try. Really.', 'Was that your best?', 'Too easy.', 'I saw that coming.', 'Cute.', 'Try the other corner. Same result.', 'Next.', 'Zero goals. Still zero.'];
-$('#zones').innerHTML = L.map((l, i) => '<button class="zone" data-z="' + i + '">' + l + '</button>').join('');
+$('#zones').innerHTML = L.map((l, i) => '<button class="zone" data-z="' + i + '" aria-label="Shoot ' + l.toLowerCase() + '"></button>').join('');
 const gk = $('#gk'), ball = $('#ball'), speech = $('#speech');
 let busy = false, saves = 0, last = -1, timer;
 function rest() {
@@ -156,26 +156,85 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
 /* ---------- Veni, Vidi, Vici ---------- */
 (function(){
   const yard=document.getElementById('yard'); if(!yard) return;
-  const cols=[['#E8B27A','#8A5A2B'],['#F5F5F5','#14141A'],['#3B2A20','#D9A066']];
-  const svg=(c)=>'<svg viewBox="0 0 64 56"><g class="b2"><path class="tail" d="M14 26 Q4 18 6 10" stroke="'+c[1]+'" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="28" cy="32" rx="18" ry="11" fill="'+c[0]+'" stroke="#14141A" stroke-width="2"/><g class="head"><circle cx="48" cy="22" r="11" fill="'+c[0]+'" stroke="#14141A" stroke-width="2"/><path d="M42 14 Q38 4 44 8 Z M52 13 Q58 3 56 12 Z" fill="'+c[1]+'" stroke="#14141A" stroke-width="2"/><circle class="eye" cx="51" cy="20" r="1.8" fill="#14141A"/><ellipse cx="58" cy="25" rx="3" ry="2.2" fill="#14141A"/><rect x="41" y="31" width="12" height="3" fill="#FF2A85"/></g></g><g class="legs" stroke="#14141A" stroke-width="4" stroke-linecap="round"><line x1="16" y1="40" x2="15" y2="52"/><line x1="24" y1="41" x2="25" y2="52"/><line x1="34" y1="41" x2="33" y2="52"/><line x1="41" y1="39" x2="42" y2="52"/></g></svg>';
+  // fur, ear/patch, collar
+  const cols=[['#F2C48D','#B97A3D','#FF2A85'],['#FFFFFF','#2A2A33','#00C2FF'],['#5A3B2A','#2B1A12','#CCFF00']];
+  const svg=(c)=>'<svg viewBox="0 0 80 72">'+
+   '<ellipse class="shadow" cx="40" cy="68" rx="24" ry="3.5" fill="#14141A" opacity=".18"/>'+
+   '<g class="b2">'+
+    '<path class="tail" d="M16 44 Q4 38 8 26" stroke="'+c[1]+'" stroke-width="6" fill="none" stroke-linecap="round"/>'+
+    '<g class="legs" fill="'+c[0]+'" stroke="#14141A" stroke-width="2"><rect class="l1" x="20" y="52" width="8" height="13" rx="4"/><rect class="l2" x="31" y="53" width="8" height="12" rx="4"/><rect class="l1" x="42" y="53" width="8" height="12" rx="4"/><rect class="l2" x="51" y="52" width="8" height="13" rx="4"/></g>'+
+    '<ellipse cx="38" cy="47" rx="23" ry="13" fill="'+c[0]+'" stroke="#14141A" stroke-width="2.2"/>'+
+    '<ellipse cx="30" cy="44" rx="7" ry="5" fill="'+c[1]+'" opacity=".55"/>'+
+    '<g class="head">'+
+     '<path class="ear" d="M42 14 Q34 12 33 26 Q34 36 41 32 Z" fill="'+c[1]+'" stroke="#14141A" stroke-width="2.2"/>'+
+     '<circle cx="54" cy="27" r="17" fill="'+c[0]+'" stroke="#14141A" stroke-width="2.2"/>'+
+     '<path class="ear" d="M66 12 Q75 12 75 26 Q73 36 67 31 Z" fill="'+c[1]+'" stroke="#14141A" stroke-width="2.2"/>'+
+     '<ellipse cx="60" cy="34" rx="9" ry="6.5" fill="#FFF4E6" stroke="#14141A" stroke-width="1.5"/>'+
+     '<g class="eye"><circle cx="49" cy="25" r="3.6" fill="#14141A"/><circle cx="50.2" cy="23.7" r="1.3" fill="#fff"/></g>'+
+     '<g class="eye"><circle cx="63" cy="25" r="3.6" fill="#14141A"/><circle cx="64.2" cy="23.7" r="1.3" fill="#fff"/></g>'+
+     '<path class="eyec" d="M45.5 26 Q49 29 52.5 26 M59.5 26 Q63 29 66.5 26" stroke="#14141A" stroke-width="2" fill="none" stroke-linecap="round"/>'+
+     '<ellipse cx="44" cy="32" rx="3" ry="2" fill="#FF8FB1" opacity=".7"/><ellipse cx="69" cy="32" rx="3" ry="2" fill="#FF8FB1" opacity=".7"/>'+
+     '<path d="M57 31 Q60 29 63 31 Q60 35 57 31Z" fill="#14141A"/>'+
+     '<path d="M60 34 Q57 38 54.5 36 M60 34 Q63 38 65.5 36" stroke="#14141A" stroke-width="1.6" fill="none" stroke-linecap="round"/>'+
+     '<path class="tongue" d="M58 37 Q60 44 62 37 Z" fill="#FF5C8A" stroke="#14141A" stroke-width="1.2"/>'+
+     '<rect x="42" y="40" width="22" height="4" rx="2" fill="'+c[2]+'" stroke="#14141A" stroke-width="1.2"/><circle cx="53" cy="46" r="2.4" fill="#FFD23F" stroke="#14141A" stroke-width="1"/>'+
+    '</g></g></svg>';
+  const W=()=>window.innerWidth, H=()=>window.innerHeight;
+  const DW=()=>W()<600?56:76;
   const dogs=['Veni','Vidi','Vici'].map((n,i)=>{const el=document.createElement('div');el.className='dog';
     el.innerHTML='<div class="say"></div><div class="nm">'+n.toUpperCase()+'</div><div class="body">'+svg(cols[i])+'</div>';
-    yard.appendChild(el);const d={el,n,x:15+i*25,f:1,t:0};el.style.left=d.x+'vw';
-    el.addEventListener('click',()=>act(d,'bark',true));return d;});
+    yard.appendChild(el);
+    const d={el,n,x:W()*(.15+i*.3),y:H()*(.3+Math.random()*.5),f:1,t:0,ate:Date.now(),busy:false};
+    el.style.transform='translate('+d.x+'px,'+d.y+'px)';
+    el.addEventListener('click',()=>{if(!d.busy) act(d,'bark',true);});return d;});
   const night=()=>root.dataset.theme==='dark';
-  const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');setTimeout(()=>s.classList.remove('show'),ms);};
-  function clear(d){d.el.classList.remove('walk','eat','bark','sleep');d.el.querySelectorAll('.zz,.bowl').forEach(n=>n.remove());}
+  const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');clearTimeout(d.st);d.st=setTimeout(()=>s.classList.remove('show'),ms);};
+  function clear(d){d.el.classList.remove('walk','run','eat','bark','sleep');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
+  function moveTo(d,x,y,speed){ // speed px/s
+    x=Math.max(4,Math.min(W()-DW()-4,x)); y=Math.max(70,Math.min(H()-DW()-4,y));
+    const dist=Math.hypot(x-d.x,y-d.y); d.f=x>=d.x?1:-1;
+    d.el.querySelector('.body').style.setProperty('--f',d.f);
+    const dur=Math.max(300,dist/speed*1000);
+    d.el.style.transitionDuration=dur+'ms'; d.x=x; d.y=y;
+    d.el.style.transform='translate('+x+'px,'+y+'px)'; return dur;
+  }
+  const EAT_EVERY=10*60*1000;
   function act(d,forced,user){
     clearTimeout(d.t); clear(d);
-    if(night()&&!user){d.el.classList.add('sleep');const z=document.createElement('div');z.className='zz';z.textContent='z Z';d.el.appendChild(z);d.t=setTimeout(()=>act(d),4000);return;}
-    if(night()&&user){say(d,'*sleepy woof*',1200);d.t=setTimeout(()=>act(d),1300);return;}
-    const r=forced||['walk','walk','walk','eat','bark','chill'][Math.floor(Math.random()*6)];
-    if(r==='walk'){const nx=Math.max(2,Math.min(92,d.x+(Math.random()*50-25)));d.f=nx>=d.x?1:-1;d.el.querySelector('.body').style.setProperty('--f',d.f);
-      const dur=Math.abs(nx-d.x)*120+300;d.el.style.transitionDuration=dur+'ms';d.el.classList.add('walk');d.x=nx;d.el.style.left=nx+'vw';d.t=setTimeout(()=>act(d),dur);}
-    else if(r==='eat'){const b=document.createElement('div');b.className='bowl';b.style.left=(d.f>0?52:-12)+'px';d.el.appendChild(b);d.el.classList.add('eat');say(d,'nom nom',2500);d.t=setTimeout(()=>act(d),3000);}
+    if(night()&&!user){d.el.classList.add('sleep');const z=document.createElement('div');z.className='zz';z.textContent='z Z';d.el.appendChild(z);d.t=setTimeout(()=>act(d),5000);return;}
+    if(night()&&user){d.el.classList.add('sleep');say(d,'*sleepy woof*',1200);d.t=setTimeout(()=>act(d),1300);return;}
+    let r=forced;
+    if(!r){ if(Date.now()-d.ate>EAT_EVERY) r='eat'; else r=['walk','walk','walk','walk','bark','chill','chill'][Math.floor(Math.random()*7)]; }
+    if(r==='walk'){d.el.classList.add('walk');const dur=moveTo(d,d.x+(Math.random()*500-250),d.y+(Math.random()*400-200),70);d.t=setTimeout(()=>act(d),dur);}
+    else if(r==='eat'){d.ate=Date.now();d.el.classList.add('eat');say(d,'nom nom',2500);d.t=setTimeout(()=>act(d),3000);}
     else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);d.t=setTimeout(()=>act(d),1200);}
-    else {say(d,'chillin ☀',1800);d.t=setTimeout(()=>act(d),2500+Math.random()*2000);}
+    else {say(d,['chillin ☀','*yawn*','*sniff sniff*','♥'][Math.floor(Math.random()*4)],1800);d.t=setTimeout(()=>act(d),3000+Math.random()*3000);}
   }
   dogs.forEach((d,i)=>setTimeout(()=>act(d),i*700));
-  new MutationObserver(()=>dogs.forEach(d=>act(d))).observe(root,{attributes:true,attributeFilter:['data-theme']});
+  new MutationObserver(()=>dogs.forEach(d=>{if(!d.busy) act(d);})).observe(root,{attributes:true,attributeFilter:['data-theme']});
+  window.addEventListener('resize',()=>dogs.forEach(d=>moveTo(d,d.x,d.y,9999)));
+
+  /* treat button */
+  const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<span aria-hidden="true">🦴</span> GIVE TREATS';
+  document.body.appendChild(btn);
+  let bowl=null;
+  btn.onclick=()=>{
+    if(bowl) return;
+    const bx=W()*(.25+Math.random()*.5), by=H()*(.4+Math.random()*.35);
+    bowl=document.createElement('div');bowl.className='tbowl';bowl.innerHTML='<i></i><i></i><i></i>';
+    bowl.style.left=bx+'px';bowl.style.top=by+'px';yard.appendChild(bowl);
+    btn.disabled=true;
+    let done=0;
+    dogs.forEach((d,i)=>{
+      clearTimeout(d.t);clear(d);d.busy=true;
+      if(night()) say(d,'!! treats?!',900); else say(d,'TREAT!!',900);
+      d.el.classList.add('run');
+      const tx=bx-DW()/2+(i-1)*(DW()*.75), ty=by-DW()*.75;
+      const dur=moveTo(d,tx,ty,420);
+      setTimeout(()=>{clear(d);d.f=bx>d.x+DW()/2?1:-1;d.el.querySelector('.body').style.setProperty('--f',d.f);d.el.classList.add('eat');say(d,'yum!',2400);d.ate=Date.now();
+        setTimeout(()=>{d.busy=false;say(d,'♥ thank u',1500);done++;
+          if(done===3){bowl.classList.add('gone');setTimeout(()=>{bowl&&bowl.remove();bowl=null;btn.disabled=false;},400);}
+          d.t=setTimeout(()=>act(d),1500);},3000);},dur);
+    });
+  };
 })();
