@@ -116,3 +116,66 @@ $('#faqs').onclick = (e) => {
   const open = b.classList.toggle('open');
   b.textContent = open ? faq[b.dataset.i][1] : '[ TAP TO DECLASSIFY ]';
 };
+
+/* ---------- travel map ---------- */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const ll={AE:[24.5,54.4],IN:[20.6,78.9],US:[39,-98],OM:[21.5,57],NL:[52.1,5.3],MY:[3.1,101.7],CH:[46.8,8.2],SG:[1.35,103.8],AT:[47.5,14.5],BE:[50.5,4.5],DE:[51.2,10.4],HU:[47.2,19.5]};
+  // crop: lon -110..120, lat -10..62
+  const P=(c)=>{const [la,lo]=ll[c];return [ (lo+110)/230*1000, (62-la)/72*500 ];};
+  const g=document.getElementById('mgrid'); if(!g) return;
+  for(let x=0;x<=1000;x+=50){const l=document.createElementNS(NS,'line');l.setAttribute('class','gl');l.setAttribute('x1',x);l.setAttribute('x2',x);l.setAttribute('y1',0);l.setAttribute('y2',500);g.appendChild(l);}
+  for(let y=0;y<=500;y+=50){const l=document.createElementNS(NS,'line');l.setAttribute('class','gl');l.setAttribute('y1',y);l.setAttribute('y2',y);l.setAttribute('x1',0);l.setAttribute('x2',1000);g.appendChild(l);}
+  const pins=document.getElementById('mpins');
+  pp.forEach(p=>{const [x,y]=P(p[0]);const gg=document.createElementNS(NS,'g');gg.setAttribute('class','pin');gg.dataset.c=p[0];
+    gg.innerHTML='<circle cx="'+x+'" cy="'+y+'" r="6"/><text x="'+(x+10)+'" y="'+(y-8)+'">'+p[0]+'</text>';pins.appendChild(gg);});
+  const plane=document.getElementById('plane'), route=document.getElementById('mroute'), tag=document.getElementById('mtag');
+  let cur='AE', raf=0; const seen=new Set(['AE']);
+  const place=(x,y,a)=>plane.setAttribute('transform','translate('+x+' '+y+') rotate('+a+')');
+  place(...P('AE'),0);
+  const mark=()=>pins.querySelectorAll('.pin').forEach(n=>{n.classList.toggle('on',n.dataset.c===cur);n.classList.toggle('seen',seen.has(n.dataset.c));});
+  mark();
+  window.__fly=(to)=>{
+    if(to===cur) return;
+    const a=P(cur), b=P(to), dx=b[0]-a[0], dy=b[1]-a[1], d=Math.hypot(dx,dy)||1;
+    const c=[(a[0]+b[0])/2 - dy*0.3*(dx<0?-1:1), (a[1]+b[1])/2 - Math.abs(dx)*0.25 - 30];
+    route.setAttribute('d','M'+a+' Q'+c+' '+b);
+    const from=cur; tag.textContent='> '+from+' ✈ '+to+' // IN FLIGHT';
+    cancelAnimationFrame(raf); const t0=performance.now(), dur=Math.min(2600,900+d*3);
+    const step=(t)=>{let k=Math.min(1,(t-t0)/dur); k=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      const q=(i)=>(1-k)*(1-k)*a[i]+2*(1-k)*k*c[i]+k*k*b[i];
+      const tx=2*(1-k)*(c[0]-a[0])+2*k*(b[0]-c[0]), ty=2*(1-k)*(c[1]-a[1])+2*k*(b[1]-c[1]);
+      const s=1+Math.sin(k*Math.PI)*.6;
+      plane.setAttribute('transform','translate('+q(0)+' '+q(1)+') rotate('+Math.atan2(ty,tx)*180/Math.PI+') scale('+s+')');
+      if(k<1) raf=requestAnimationFrame(step); else {tag.textContent='> LANDED IN '+to+' // FROM '+from;}};
+    cur=to; seen.add(to); mark(); raf=requestAnimationFrame(step);
+  };
+})();
+$('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); if(b && window.__fly) window.__fly(pp[+b.dataset.i][0]);});
+
+/* ---------- Veni, Vidi, Vici ---------- */
+(function(){
+  const yard=document.getElementById('yard'); if(!yard) return;
+  const cols=[['#E8B27A','#8A5A2B'],['#F5F5F5','#14141A'],['#3B2A20','#D9A066']];
+  const svg=(c)=>'<svg viewBox="0 0 64 56"><g class="b2"><path class="tail" d="M14 26 Q4 18 6 10" stroke="'+c[1]+'" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="28" cy="32" rx="18" ry="11" fill="'+c[0]+'" stroke="#14141A" stroke-width="2"/><g class="head"><circle cx="48" cy="22" r="11" fill="'+c[0]+'" stroke="#14141A" stroke-width="2"/><path d="M42 14 Q38 4 44 8 Z M52 13 Q58 3 56 12 Z" fill="'+c[1]+'" stroke="#14141A" stroke-width="2"/><circle class="eye" cx="51" cy="20" r="1.8" fill="#14141A"/><ellipse cx="58" cy="25" rx="3" ry="2.2" fill="#14141A"/><rect x="41" y="31" width="12" height="3" fill="#FF2A85"/></g></g><g class="legs" stroke="#14141A" stroke-width="4" stroke-linecap="round"><line x1="16" y1="40" x2="15" y2="52"/><line x1="24" y1="41" x2="25" y2="52"/><line x1="34" y1="41" x2="33" y2="52"/><line x1="41" y1="39" x2="42" y2="52"/></g></svg>';
+  const dogs=['Veni','Vidi','Vici'].map((n,i)=>{const el=document.createElement('div');el.className='dog';
+    el.innerHTML='<div class="say"></div><div class="nm">'+n.toUpperCase()+'</div><div class="body">'+svg(cols[i])+'</div>';
+    yard.appendChild(el);const d={el,n,x:15+i*25,f:1,t:0};el.style.left=d.x+'vw';
+    el.addEventListener('click',()=>act(d,'bark',true));return d;});
+  const night=()=>root.dataset.theme==='dark';
+  const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');setTimeout(()=>s.classList.remove('show'),ms);};
+  function clear(d){d.el.classList.remove('walk','eat','bark','sleep');d.el.querySelectorAll('.zz,.bowl').forEach(n=>n.remove());}
+  function act(d,forced,user){
+    clearTimeout(d.t); clear(d);
+    if(night()&&!user){d.el.classList.add('sleep');const z=document.createElement('div');z.className='zz';z.textContent='z Z';d.el.appendChild(z);d.t=setTimeout(()=>act(d),4000);return;}
+    if(night()&&user){say(d,'*sleepy woof*',1200);d.t=setTimeout(()=>act(d),1300);return;}
+    const r=forced||['walk','walk','walk','eat','bark','chill'][Math.floor(Math.random()*6)];
+    if(r==='walk'){const nx=Math.max(2,Math.min(92,d.x+(Math.random()*50-25)));d.f=nx>=d.x?1:-1;d.el.querySelector('.body').style.setProperty('--f',d.f);
+      const dur=Math.abs(nx-d.x)*120+300;d.el.style.transitionDuration=dur+'ms';d.el.classList.add('walk');d.x=nx;d.el.style.left=nx+'vw';d.t=setTimeout(()=>act(d),dur);}
+    else if(r==='eat'){const b=document.createElement('div');b.className='bowl';b.style.left=(d.f>0?52:-12)+'px';d.el.appendChild(b);d.el.classList.add('eat');say(d,'nom nom',2500);d.t=setTimeout(()=>act(d),3000);}
+    else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);d.t=setTimeout(()=>act(d),1200);}
+    else {say(d,'chillin ☀',1800);d.t=setTimeout(()=>act(d),2500+Math.random()*2000);}
+  }
+  dogs.forEach((d,i)=>setTimeout(()=>act(d),i*700));
+  new MutationObserver(()=>dogs.forEach(d=>act(d))).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();

@@ -92,3 +92,42 @@ footer .mono-box{width:40px;height:40px;background:#CCFF00;border:0;font-size:18
 .bd-row{display:flex;flex-wrap:wrap;gap:20px;align-items:stretch}
 .bd-row>div{flex:1 1 260px;min-width:0;padding:20px}
 .age{font:900 clamp(190px,40vw,560px)/.8 'Bodoni Moda',serif;color:var(--a1);-webkit-text-stroke:5px var(--ink)}
+/* football cursor */
+html,body,*{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='12' fill='%23fff' stroke='%2314141A' stroke-width='2'/%3E%3Cpath d='M14 8l5 3.6-1.9 5.9h-6.2L9 11.6z' fill='%2314141A'/%3E%3Cpath d='M14 8V3M19 11.6l5-1.6M17.1 17.5l3 4M10.9 17.5l-3 4M9 11.6L4 10' stroke='%2314141A' stroke-width='1.6'/%3E%3C/svg%3E") 14 14,auto}
+a,button,.stamp,.bar,[role=button],.dog{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='12' fill='%23CCFF00' stroke='%2314141A' stroke-width='2'/%3E%3Cpath d='M14 8l5 3.6-1.9 5.9h-6.2L9 11.6z' fill='%2314141A'/%3E%3Cpath d='M14 8V3M19 11.6l5-1.6M17.1 17.5l3 4M10.9 17.5l-3 4M9 11.6L4 10' stroke='%2314141A' stroke-width='1.6'/%3E%3C/svg%3E") 16 16,pointer}
+/* map */
+.map{position:relative;margin:0 0 24px;padding:8px;background:var(--sky);overflow:hidden}
+.map svg{display:block;width:100%;height:auto}
+.map .gl{stroke:var(--net);stroke-width:1}
+#mroute{stroke:var(--pop);stroke-width:3;stroke-dasharray:8 8;stroke-linecap:round}
+.pin circle{fill:var(--card);stroke:var(--line);stroke-width:2.5;transition:r .2s}
+.pin.on circle{fill:var(--pop);r:9}
+.pin.seen circle{fill:var(--a1)}
+.pin text{font:700 15px 'Space Mono',monospace;fill:var(--ink)}
+#plane path{fill:var(--ink);stroke:var(--bg);stroke-width:1}
+.mtag{position:absolute;left:12px;bottom:10px;font-size:12px;background:var(--bar);color:var(--barfg);padding:4px 8px}
+@media (max-width:600px){.pin text{font-size:22px}.mtag{font-size:10px}}
+/* dogs */
+#yard{position:fixed;left:0;right:0;bottom:0;height:70px;pointer-events:none;z-index:40}
+.dog{position:absolute;bottom:4px;width:64px;height:56px;pointer-events:auto;transition:left linear;filter:drop-shadow(2px 2px 0 var(--line))}
+.dog .body{width:100%;height:100%;transform:scaleX(var(--f,1));transition:transform .2s}
+.dog svg{width:100%;height:100%;overflow:visible}
+.dog .nm{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font:700 10px 'Space Mono',monospace;background:var(--bar);color:var(--barfg);padding:1px 5px;white-space:nowrap}
+.dog .say{position:absolute;top:-40px;left:50%;transform:translateX(-50%);font:800 13px Syne,sans-serif;background:var(--card);color:var(--ink);border:2px solid var(--line);padding:2px 6px;white-space:nowrap;opacity:0;transition:opacity .2s}
+.dog .say.show{opacity:1}
+.dog.walk .legs{animation:trot .3s steps(2) infinite}
+.dog.walk .b2{animation:bob .3s infinite alternate}
+.dog .tail{transform-origin:14px 24px;animation:wag .4s infinite alternate}
+.dog.eat .head{transform:translate(4px,8px) rotate(25deg);transform-origin:46px 22px}
+.dog.bark .head{animation:bk .15s 4 alternate}
+.dog.sleep .legs{opacity:0}.dog.sleep .b2{transform:translateY(10px)}.dog.sleep .tail{animation:none}
+.dog.sleep .head{transform:translate(0,12px)}.dog .eye{transition:transform .2s}.dog.sleep .eye{transform:scaleY(.15);transform-origin:center}
+.bowl{position:absolute;bottom:4px;width:24px;height:10px;background:var(--pop);border:2px solid var(--line);border-radius:0 0 12px 12px}
+@keyframes trot{to{transform:translateX(3px)}}
+@keyframes bob{to{transform:translateY(-2px)}}
+@keyframes wag{to{transform:rotate(-30deg)}}
+@keyframes bk{to{transform:translateY(-3px) rotate(-8deg)}}
+@keyframes zz{0%{opacity:0;transform:translate(0,0)}50%{opacity:1}100%{opacity:0;transform:translate(14px,-22px)}}
+.zz{position:absolute;top:-10px;right:0;font:800 14px Syne,sans-serif;color:var(--ink);animation:zz 2s infinite}
+@media (max-width:600px){.dog{width:48px;height:42px}#yard{height:56px}}
+@media (hover:none){html,body,*{cursor:auto}}
