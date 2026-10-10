@@ -1,4 +1,3 @@
-
 const $ = (s) => document.querySelector(s);
 const root = document.documentElement;
 
@@ -20,7 +19,8 @@ const today = new Date(year, now.getMonth(), now.getDate());
 let next = new Date(year, 10, 30);
 if (today > next) next = new Date(year + 1, 10, 30);
 const days = Math.round((next - today) / 86400000);
-const isBirthday = (now.getMonth() === 10 && now.getDate() === 30) || new URLSearchParams(location.search).has('birthday'); // add ?birthday to preview
+// The birthday page shows ONLY on 30 Nov. The ?birthday preview works only when running locally (bun dev), never on the live site.
+const isBirthday = (now.getMonth() === 10 && now.getDate() === 30) || (window.__EJ_DEV__ === true && new URLSearchParams(location.search).has('birthday'));
 $('#yr').textContent = year;
 const tk = '// EESHIKA JAKKA // GOALKEEPER // SCIENCE STREAM // 12 COUNTRIES // ' + (days === 0 ? 'BIRTHDAY TODAY' : 'BIRTHDAY IN ' + days + ' DAYS') + ' ';
 $('#tk').textContent = tk + tk;
@@ -95,7 +95,7 @@ $('#reset').onclick = () => { clearTimeout(timer); saves = 0; $('#saves').textCo
 const pp = [['AE', 'UAE', 'Middle East'], ['IN', 'India', 'South Asia'], ['US', 'USA', 'North America'], ['OM', 'Oman', 'Middle East'], ['NL', 'Netherlands', 'Europe'], ['MY', 'Malaysia', 'Southeast Asia'], ['CH', 'Switzerland', 'Europe'], ['SG', 'Singapore', 'Southeast Asia'], ['AT', 'Austria', 'Europe'], ['BE', 'Belgium', 'Europe'], ['DE', 'Germany', 'Europe'], ['HU', 'Hungary', 'Europe']];
 let sel = -1;
 function drawStamps() {
-  $('#stamps').innerHTML = pp.map((p, i) => '<button class="stamp lift' + (sel === i ? ' on' : '') + '" data-i="' + i + '"><span class="mono">' + p[0] + '</span><span class="syne n">' + p[1] + '</span></button>').join('');
+  $('#stamps').innerHTML = pp.map((p, i) => '<button class="stamp lift' + (sel === i ? ' on' : '') + '" data-i="' + i + '"><span class="mono">' + p[0] + '</span><span class="nw"><span class="syne n">' + p[1] + '</span></span></button>').join('');
   $('#readout').textContent = sel >= 0 ? '> ' + pp[sel][1].toUpperCase() + ' // ' + pp[sel][2].toUpperCase() : '> TAP A STAMP';
 }
 $('#stamps').onclick = (e) => { const b = e.target.closest('.stamp'); if (!b) return; sel = sel === +b.dataset.i ? -1 : +b.dataset.i; drawStamps(); };
@@ -121,11 +121,11 @@ $('#faqs').onclick = (e) => {
 (function(){
   const NS='http://www.w3.org/2000/svg';
   const ll={AE:[24.5,54.4],IN:[20.6,78.9],US:[39,-98],OM:[21.5,57],NL:[52.1,5.3],MY:[3.1,101.7],CH:[46.8,8.2],SG:[1.35,103.8],AT:[47.5,14.5],BE:[50.5,4.5],DE:[51.2,10.4],HU:[47.2,19.5]};
-  // crop: lon -110..120, lat -10..62
-  const P=(c)=>{const [la,lo]=ll[c];return [ (lo+110)/230*1000, (62-la)/72*500 ];};
+  // map crop (must match the generated land paths): lon -130..135, lat -38..68 -> 1000 x 400
+  const P=(c)=>{const [la,lo]=ll[c];return [ (lo+130)/265*1000, (68-la)/106*400 ];};
   const g=document.getElementById('mgrid'); if(!g) return;
-  for(let x=0;x<=1000;x+=50){const l=document.createElementNS(NS,'line');l.setAttribute('class','gl');l.setAttribute('x1',x);l.setAttribute('x2',x);l.setAttribute('y1',0);l.setAttribute('y2',500);g.appendChild(l);}
-  for(let y=0;y<=500;y+=50){const l=document.createElementNS(NS,'line');l.setAttribute('class','gl');l.setAttribute('y1',y);l.setAttribute('y2',y);l.setAttribute('x1',0);l.setAttribute('x2',1000);g.appendChild(l);}
+  for(let x=0;x<=1000;x+=50){const l=document.createElementNS(NS,'line');l.setAttribute('class','gl');l.setAttribute('x1',x);l.setAttribute('x2',x);l.setAttribute('y1',0);l.setAttribute('y2',400);g.appendChild(l);}
+  for(let y=0;y<=400;y+=50){const l=document.createElementNS(NS,'line');l.setAttribute('class','gl');l.setAttribute('y1',y);l.setAttribute('y2',y);l.setAttribute('x1',0);l.setAttribute('x2',1000);g.appendChild(l);}
   const pins=document.getElementById('mpins');
   pp.forEach(p=>{const [x,y]=P(p[0]);const gg=document.createElementNS(NS,'g');gg.setAttribute('class','pin');gg.dataset.c=p[0];
     gg.innerHTML='<circle cx="'+x+'" cy="'+y+'" r="6"/><text x="'+(x+10)+'" y="'+(y-8)+'">'+p[0]+'</text>';pins.appendChild(gg);});
@@ -134,11 +134,13 @@ $('#faqs').onclick = (e) => {
   const place=(x,y,a)=>plane.setAttribute('transform','translate('+x+' '+y+') rotate('+a+')');
   place(...P('AE'),0);
   const mark=()=>pins.querySelectorAll('.pin').forEach(n=>{n.classList.toggle('on',n.dataset.c===cur);n.classList.toggle('seen',seen.has(n.dataset.c));});
-  mark();
+  const lands=document.querySelectorAll('#mland .visit');
+  const markLand=()=>lands.forEach(n=>{n.classList.toggle('on',n.dataset.c===cur);n.classList.toggle('seen',seen.has(n.dataset.c));});
+  mark();markLand();
   window.__fly=(to)=>{
     if(to===cur) return;
     const a=P(cur), b=P(to), dx=b[0]-a[0], dy=b[1]-a[1], d=Math.hypot(dx,dy)||1;
-    const c=[(a[0]+b[0])/2 - dy*0.3*(dx<0?-1:1), (a[1]+b[1])/2 - Math.abs(dx)*0.25 - 30];
+    const c=[(a[0]+b[0])/2 - dy*0.3*(dx<0?-1:1), (a[1]+b[1])/2 - Math.abs(dx)*0.2 - 20];
     route.setAttribute('d','M'+a+' Q'+c+' '+b);
     const from=cur; tag.textContent='> '+from+' ✈ '+to+' // IN FLIGHT';
     cancelAnimationFrame(raf); const t0=performance.now(), dur=Math.min(2600,900+d*3);
@@ -148,7 +150,7 @@ $('#faqs').onclick = (e) => {
       const s=1+Math.sin(k*Math.PI)*.6;
       plane.setAttribute('transform','translate('+q(0)+' '+q(1)+') rotate('+Math.atan2(ty,tx)*180/Math.PI+') scale('+s+')');
       if(k<1) raf=requestAnimationFrame(step); else {tag.textContent='> LANDED IN '+to+' // FROM '+from;}};
-    cur=to; seen.add(to); mark(); raf=requestAnimationFrame(step);
+    cur=to; seen.add(to); mark(); markLand(); raf=requestAnimationFrame(step);
   };
 })();
 $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); if(b && window.__fly) window.__fly(pp[+b.dataset.i][0]);});
@@ -179,19 +181,29 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
      '<path class="tongue" d="M58 37 Q60 44 62 37 Z" fill="#FF5C8A" stroke="#14141A" stroke-width="1.2"/>'+
      '<rect x="42" y="40" width="22" height="4" rx="2" fill="'+c[2]+'" stroke="#14141A" stroke-width="1.2"/><circle cx="53" cy="46" r="2.4" fill="#FFD23F" stroke="#14141A" stroke-width="1"/>'+
     '</g></g></svg>';
-  const W=()=>window.innerWidth, H=()=>window.innerHeight;
-  const DW=()=>W()<600?56:76;
+  const site=document.getElementById('site');
+  const W=()=>yard.clientWidth||window.innerWidth, H=()=>window.innerHeight, DH=()=>yard.clientHeight||H();
+  const DW=()=>window.innerWidth<600?56:76;
+  // the yard covers the WHOLE page (not just the screen), so the dogs can go anywhere on the site
+  function sync(){
+    const hide=site.hidden;
+    yard.style.display=hide?'none':'block';
+    const bt=document.querySelector('.treat'); if(bt) bt.style.display=hide?'none':'';
+    if(hide) return;
+    yard.style.height=Math.max(site.getBoundingClientRect().bottom+window.scrollY,H())+'px';
+  }
+  sync();
   const dogs=['Veni','Vidi','Vici'].map((n,i)=>{const el=document.createElement('div');el.className='dog';
     el.innerHTML='<div class="say"></div><div class="nm">'+n.toUpperCase()+'</div><div class="body">'+svg(cols[i])+'</div>';
     yard.appendChild(el);
-    const d={el,n,x:W()*(.15+i*.3),y:H()*(.3+Math.random()*.5),f:1,t:0,ate:Date.now(),busy:false};
+    const d={el,n,x:W()*(.15+i*.3),y:window.scrollY+H()*(.3+Math.random()*.5),f:1,t:0,ate:Date.now(),busy:false};
     el.style.transform='translate('+d.x+'px,'+d.y+'px)';
     el.addEventListener('click',()=>{if(!d.busy) act(d,'bark',true);});return d;});
   const night=()=>root.dataset.theme==='dark';
   const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');clearTimeout(d.st);d.st=setTimeout(()=>s.classList.remove('show'),ms);};
   function clear(d){d.el.classList.remove('walk','run','eat','bark','sleep');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
   function moveTo(d,x,y,speed){ // speed px/s
-    x=Math.max(4,Math.min(W()-DW()-4,x)); y=Math.max(70,Math.min(H()-DW()-4,y));
+    x=Math.max(4,Math.min(W()-DW()-4,x)); y=Math.max(4,Math.min(DH()-DW()-4,y));
     const dist=Math.hypot(x-d.x,y-d.y); d.f=x>=d.x?1:-1;
     d.el.querySelector('.body').style.setProperty('--f',d.f);
     const dur=Math.max(300,dist/speed*1000);
@@ -205,14 +217,23 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     if(night()&&user){d.el.classList.add('sleep');say(d,'*sleepy woof*',1200);d.t=setTimeout(()=>act(d),1300);return;}
     let r=forced;
     if(!r){ if(Date.now()-d.ate>EAT_EVERY) r='eat'; else r=['walk','walk','walk','walk','bark','chill','chill'][Math.floor(Math.random()*7)]; }
-    if(r==='walk'){d.el.classList.add('walk');const dur=moveTo(d,d.x+(Math.random()*500-250),d.y+(Math.random()*400-200),70);d.t=setTimeout(()=>act(d),dur);}
+    if(r==='walk'){
+      // 45% of the time stay in the part of the page the visitor is looking at, otherwise roam anywhere on the site
+      const near=Math.random()<.45;
+      const tx=Math.random()*(W()-DW());
+      const ty=near?window.scrollY+60+Math.random()*Math.max(60,H()-DW()-120):Math.random()*(DH()-DW());
+      const far=Math.hypot(tx-d.x,ty-d.y)>500;
+      d.el.classList.add(far?'run':'walk');
+      const dur=moveTo(d,tx,ty,far?200:70);d.t=setTimeout(()=>act(d),dur);}
     else if(r==='eat'){d.ate=Date.now();d.el.classList.add('eat');say(d,'nom nom',2500);d.t=setTimeout(()=>act(d),3000);}
     else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);d.t=setTimeout(()=>act(d),1200);}
     else {say(d,['chillin ☀','*yawn*','*sniff sniff*','♥'][Math.floor(Math.random()*4)],1800);d.t=setTimeout(()=>act(d),3000+Math.random()*3000);}
   }
   dogs.forEach((d,i)=>setTimeout(()=>act(d),i*700));
   new MutationObserver(()=>dogs.forEach(d=>{if(!d.busy) act(d);})).observe(root,{attributes:true,attributeFilter:['data-theme']});
-  window.addEventListener('resize',()=>dogs.forEach(d=>moveTo(d,d.x,d.y,9999)));
+  window.addEventListener('resize',()=>{sync();dogs.forEach(d=>moveTo(d,d.x,d.y,9999));});
+  window.addEventListener('load',sync);
+  if('ResizeObserver' in window) new ResizeObserver(sync).observe(site);
 
   /* treat button */
   const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<svg aria-hidden="true" width="22" height="12" viewBox="0 0 44 24"><path d="M10 4a5 5 0 0 1 9 2h6a5 5 0 1 1 9 4 5 5 0 1 1-9 4h-6a5 5 0 1 1-9-4 5 5 0 0 1 0-6z" fill="#fff" stroke="#14141A" stroke-width="2.5"/></svg> GIVE TREATS';
@@ -220,7 +241,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   let bowl=null;
   btn.onclick=()=>{
     if(bowl) return;
-    const bx=W()*(.25+Math.random()*.5), by=H()*(.4+Math.random()*.35);
+    const bx=W()*(.25+Math.random()*.5), by=window.scrollY+H()*(.4+Math.random()*.35);
     bowl=document.createElement('div');bowl.className='tbowl';bowl.innerHTML='<i></i><i></i><i></i>';
     bowl.style.left=bx+'px';bowl.style.top=by+'px';yard.appendChild(bowl);
     btn.disabled=true;
