@@ -1,0 +1,118 @@
+
+const $ = (s) => document.querySelector(s);
+const root = document.documentElement;
+
+/* ---------- theme (remembers the choice) ---------- */
+function setTheme(t) {
+  root.dataset.theme = t;
+  $('#mode').textContent = t === 'dark' ? 'DAY MODE' : 'NIGHT MODE';
+  try { localStorage.setItem('theme', t); } catch (e) {}
+}
+let saved = null;
+try { saved = localStorage.getItem('theme'); } catch (e) {}
+setTheme(saved === 'dark' ? 'dark' : 'light');
+$('#mode').onclick = () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+
+/* ---------- date logic: birthday page + countdown ---------- */
+const BIRTH_YEAR = 2011; // she turns (current year - 2011) on 30 Nov
+const now = new Date(), year = now.getFullYear();
+const today = new Date(year, now.getMonth(), now.getDate());
+let next = new Date(year, 10, 30);
+if (today > next) next = new Date(year + 1, 10, 30);
+const days = Math.round((next - today) / 86400000);
+const isBirthday = (now.getMonth() === 10 && now.getDate() === 30) || new URLSearchParams(location.search).has('birthday'); // add ?birthday to preview
+$('#yr').textContent = year;
+const tk = '// EESHIKA JAKKA // GOALKEEPER // SCIENCE STREAM // 12 COUNTRIES // ' + (days === 0 ? 'BIRTHDAY TODAY' : 'BIRTHDAY IN ' + days + ' DAYS') + ' ';
+$('#tk').textContent = tk + tk;
+const mq = 'GOALKEEPER /// SCIENCE /// ASIAN CUISINE /// GOLDEN RETRIEVERS /// 12 COUNTRIES /// ';
+$('#mqi').textContent = mq + mq;
+if (isBirthday) {
+  const age = year - BIRTH_YEAR;
+  $('#bd-age').textContent = age; $('#bd-v').textContent = age;
+  $('#bd-date').textContent = '30.11.' + year + ' // BIRTHDAY MODE';
+  $('#bday').hidden = false; $('#site').hidden = true;
+  $('#enter').onclick = () => { $('#bday').hidden = true; $('#site').hidden = false; window.scrollTo(0, 0); };
+}
+
+/* ---------- GK sticker ---------- */
+const gks = ['GK #1', 'Not today', 'Next.', 'No.', 'BRB'];
+let g = 0;
+$('#gkb').onclick = () => { g = (g + 1) % gks.length; $('#gkb').textContent = gks[g]; };
+
+/* ---------- about cards (tap to flip) ---------- */
+const cd = [
+  ['FOOTBALL', 'Goalkeeper.', 'Gloves on, mostly quiet, hard to get one past. Basketball on the side.', 'Go on, shoot. I dare you.', '2 1 420px', 'POSITION: GK', 'SIDE QUEST: BASKETBALL'],
+  ['KITCHEN', 'She cooks.', 'Asian cuisine, mostly. It turns out well.', "If it smells good, it's probably mine.", '1 1 280px', 'CUISINE: ASIAN', 'LEVEL: LEGIT'],
+  ['DOGS', 'Golden retrievers.', 'Knows her breeds. Golden retriever is the favourite.', 'Ask me about any breed. Go on.', '1 1 280px', 'FAVE: GOLDEN RETRIEVER', 'BREEDS: ALL OF THEM'],
+  ['STEM', 'Future engineer.', 'Science stream, into tech, headed straight for STEM.', 'Someone has to build the future.', '1 1 280px', 'STREAM: SCIENCE', 'NEXT: STEM'],
+  ['TRAVEL', '12 countries.', 'From Oman to Hungary, with a few good stops in between.', "Passport's getting full.", '2 1 420px', 'BASE: UAE', 'ROOTS: INDIA']
+];
+const flip = {};
+function drawCards() {
+  $('#cards').innerHTML = cd.map((c, i) => {
+    const f = flip[i];
+    return '<button class="card lift" data-i="' + i + '" style="flex:' + c[4] + ';background:' + (f ? 'var(--card)' : 'var(--a' + (i + 1) + ')') + ';color:' + (f ? 'var(--ink)' : 'var(--on)') + '">' +
+      '<span><span class="top"><span>' + c[0] + '</span><span>' + (f ? 'BACK' : 'TAP') + '</span></span><span class="t syne">' + c[1] + '</span><span class="d" style="font-weight:' + (f ? 700 : 500) + '">' + (f ? c[3] : c[2]) + '</span></span>' +
+      '<span class="r"><span>' + c[5] + '</span><span>' + c[6] + '</span></span></button>';
+  }).join('');
+}
+$('#cards').onclick = (e) => { const b = e.target.closest('.card'); if (!b) return; flip[b.dataset.i] = !flip[b.dataset.i]; drawCards(); };
+drawCards();
+
+/* ---------- game: she always wins ---------- */
+const P = [[17, 25], [50, 25], [83, 25], [17, 75], [50, 75], [83, 75]];
+const L = ['TOP LEFT', 'TOP MID', 'TOP RIGHT', 'LOW LEFT', 'LOW MID', 'LOW RIGHT'];
+const Q = ['Better luck next time.', 'Not today.', 'Nice try. Really.', 'Was that your best?', 'Too easy.', 'I saw that coming.', 'Cute.', 'Try the other corner. Same result.', 'Next.', 'Zero goals. Still zero.'];
+$('#zones').innerHTML = L.map((l, i) => '<button class="zone" data-z="' + i + '">' + l + '</button>').join('');
+const gk = $('#gk'), ball = $('#ball'), speech = $('#speech');
+let busy = false, saves = 0, last = -1, timer;
+function rest() {
+  busy = false;
+  gk.style.left = '50%'; gk.style.top = '62%'; gk.style.transform = 'translate(-50%,-50%)';
+  ball.style.left = '50%'; ball.style.top = '112%';
+  speech.style.opacity = 0; $('#status').textContent = 'GO AGAIN.';
+  document.querySelectorAll('.zone.hit').forEach((z) => z.classList.remove('hit'));
+}
+$('#zones').onclick = (e) => {
+  const b = e.target.closest('.zone');
+  if (!b || busy) return;
+  busy = true;
+  const z = +b.dataset.z, col = z % 3;
+  gk.style.left = P[z][0] + '%'; gk.style.top = P[z][1] + '%';
+  gk.style.transform = 'translate(-50%,-50%) rotate(' + (col === 0 ? -60 : col === 2 ? 60 : 0) + 'deg)';
+  ball.style.left = P[z][0] + '%'; ball.style.top = P[z][1] + '%';
+  b.classList.add('hit');
+  let i = Math.floor(Math.random() * Q.length);
+  if (i === last) i = (i + 1) % Q.length;
+  last = i;
+  speech.textContent = Q[i]; speech.style.opacity = 1;
+  saves++; $('#saves').textContent = saves; $('#status').textContent = 'SAVED.';
+  timer = setTimeout(rest, 1400);
+};
+$('#reset').onclick = () => { clearTimeout(timer); saves = 0; $('#saves').textContent = 0; rest(); $('#status').textContent = 'PICK A SPOT.'; };
+
+/* ---------- passport ---------- */
+const pp = [['AE', 'UAE', 'Middle East'], ['IN', 'India', 'South Asia'], ['US', 'USA', 'North America'], ['OM', 'Oman', 'Middle East'], ['NL', 'Netherlands', 'Europe'], ['MY', 'Malaysia', 'Southeast Asia'], ['CH', 'Switzerland', 'Europe'], ['SG', 'Singapore', 'Southeast Asia'], ['AT', 'Austria', 'Europe'], ['BE', 'Belgium', 'Europe'], ['DE', 'Germany', 'Europe'], ['HU', 'Hungary', 'Europe']];
+let sel = -1;
+function drawStamps() {
+  $('#stamps').innerHTML = pp.map((p, i) => '<button class="stamp lift' + (sel === i ? ' on' : '') + '" data-i="' + i + '"><span class="mono">' + p[0] + '</span><span class="syne n">' + p[1] + '</span></button>').join('');
+  $('#readout').textContent = sel >= 0 ? '> ' + pp[sel][1].toUpperCase() + ' // ' + pp[sel][2].toUpperCase() : '> TAP A STAMP';
+}
+$('#stamps').onclick = (e) => { const b = e.target.closest('.stamp'); if (!b) return; sel = sel === +b.dataset.i ? -1 : +b.dataset.i; drawStamps(); };
+drawStamps();
+
+/* ---------- FAQ (tap a bar to declassify) ---------- */
+const faq = [
+  ['How many brothers and sisters do you have?', "I have some. It's not that deep."],
+  ['What does your dad do for a living?', "He works. That's all I'm saying."],
+  ["What are your parents' names?", "They have names. I'm keeping them."],
+  ['Which school do you go to?', "A school. It has classrooms. That's about it."],
+  ['Are you always this calm?', "Am I? I hadn't noticed."],
+  ["What's your signature dish?", 'Noodles. The recipe stays with me.']
+];
+$('#faqs').innerHTML = faq.map((f, i) => '<div class="faq box lift"><div class="q syne">' + f[0] + '</div><button class="bar" data-i="' + i + '">[ TAP TO DECLASSIFY ]</button></div>').join('');
+$('#faqs').onclick = (e) => {
+  const b = e.target.closest('.bar'); if (!b) return;
+  const open = b.classList.toggle('open');
+  b.textContent = open ? faq[b.dataset.i][1] : '[ TAP TO DECLASSIFY ]';
+};

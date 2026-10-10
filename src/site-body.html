@@ -1,0 +1,115 @@
+
+
+<section id="bday" hidden>
+<i class="sq" style="top:10%;right:7%;width:56px;height:56px;background:var(--a2);transform:rotate(14deg)"></i>
+<i class="sq" style="top:36%;right:18%;width:32px;height:32px;background:var(--a4);transform:rotate(-20deg)"></i>
+<i class="sq" style="top:54%;right:5%;width:44px;height:44px;background:var(--a1);transform:rotate(30deg)"></i>
+<div class="mono" style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;font-size:13px;letter-spacing:1px"><span id="bd-date"></span><span>EESHIKA JAKKA</span></div>
+<div>
+<div class="syne" style="font-size:clamp(32px,7vw,96px);line-height:1">Happy birthday,</div>
+<div class="age" id="bd-age"></div>
+<div class="syne" style="margin-top:16px;font-size:clamp(32px,6vw,72px);color:var(--pop)">Eeshika.</div>
+</div>
+<div class="bd-row">
+<div class="syne box" style="background:var(--a4);color:var(--on);font-size:clamp(22px,3vw,32px);line-height:1.2;text-transform:none">"Yeah, it's my birthday. Don't make it weird."</div>
+<div class="box mono" style="font-size:15px;line-height:1.8"><div style="color:var(--pop)">PATCH NOTES v<span id="bd-v"></span>.0</div><div>+ one year older</div><div>+ same energy</div><div>- zero fuss</div><div style="margin-top:8px;font-size:13px">FROM: A MYSTERIOUS SOURCE</div></div>
+<button class="b" id="enter" style="flex:0 0 auto;align-self:flex-end;min-height:52px;padding:0 28px;font-size:15px">[ ENTER SITE ]</button>
+</div>
+</section>
+
+<div id="site" class="wrap">
+<div id="top-strip" class="strip"><div id="tk"></div></div>
+
+<header>
+<a class="logo" href="#top"><span class="mono-box">EJ</span><span class="syne" style="font-size:20px">Eeshika Jakka</span></a>
+<nav><a href="#about">ABOUT</a><a href="#game">GAME</a><a href="#passport">PASSPORT</a><a href="#faq">FAQ</a><button class="b" id="mode">NIGHT MODE</button></nav>
+</header>
+
+<section class="hero" id="top">
+<div>
+<span class="chip"><span class="dot"><i></i></span>GOALKEEPER // STEM</span>
+<h1>Eeshika<br><em>Jakka.</em></h1>
+<p class="sub syne">Goalkeeper, science kid, future engineer.</p>
+<p class="mono" style="margin:10px 0 0;font-size:15px">Yeah, this is my website. It's fine.</p>
+<div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:28px"><a class="b" href="#game" style="min-height:48px;padding:0 24px;font-size:15px">TRY TO SCORE &rarr;</a><a class="b" href="#faq" style="min-height:48px;padding:0 24px;font-size:15px;background:var(--card);color:var(--ink)">READ THE FAQ</a></div>
+</div>
+<div>
+<div class="frame">
+<div class="back"></div>
+<div class="pic"><img src="/photo.jpg" alt="Eeshika" onerror="this.remove()"><div class="hud"><span>REC [LIVE]</span><span style="background:#FF2A85;color:#fff;padding:0 6px">EJ_SYS</span></div><div class="ej">EJ</div><div class="cap">KEEPER // EST. 2011</div></div>
+<button class="b" id="gkb">GK #1</button>
+</div>
+</div>
+</section>
+
+<div id="mq" class="strip"><div id="mqi"></div></div>
+
+<section class="sec" id="about">
+<div class="lab">01 // ABOUT</div>
+<h2>A few things<br>about her.</h2>
+<p class="syne" style="margin:0 0 12px;max-width:680px;font-size:clamp(18px,2.2vw,26px);line-height:1.35;text-transform:none;font-weight:700">Science stream, big on tech, and usually somewhere between a football pitch, a kitchen and a dog.</p>
+<p class="mono" style="margin:0 0 28px;font-size:13px;color:var(--muted)">TAP A CARD.</p>
+<div class="cards" id="cards"></div>
+</section>
+
+<section class="sec" id="game">
+<div class="lab">02 // GAME</div>
+<h2>Try to score<br>on Eeshika.</h2>
+<p style="margin:0 auto 24px;font-size:17px;max-width:560px">Tap a spot in the goal to shoot. Good luck. You'll need it.</p>
+<div class="arena box">
+<div class="mono" style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;font-size:15px"><span>GOALS 0</span><span>SAVES <span id="saves">0</span></span></div>
+<div id="status" class="syne">PICK A SPOT.</div>
+<div class="scene">
+<div class="goal">
+<div class="zones" id="zones"></div>
+<div class="keeper" id="gk">
+<svg viewBox="0 0 120 160" aria-hidden="true">
+<line x1="38" y1="56" x2="14" y2="30" stroke="#050505" stroke-width="18" stroke-linecap="round"/><line class="jl" x1="38" y1="56" x2="14" y2="30" stroke-width="10" stroke-linecap="round"/>
+<line x1="82" y1="56" x2="106" y2="30" stroke="#050505" stroke-width="18" stroke-linecap="round"/><line class="jl" x1="82" y1="56" x2="106" y2="30" stroke-width="10" stroke-linecap="round"/>
+<rect class="sk" x="38" y="116" width="16" height="30" stroke="#050505" stroke-width="4"/><rect class="sk" x="66" y="116" width="16" height="30" stroke="#050505" stroke-width="4"/>
+<rect x="32" y="144" width="26" height="12" rx="4" fill="#050505"/><rect x="62" y="144" width="26" height="12" rx="4" fill="#050505"/>
+<path d="M34 96H86L90 122H64L60 110L56 122H30Z" fill="#14141A" stroke="#050505" stroke-width="4"/>
+<path class="jf" d="M36 50H84L90 100H30Z" stroke="#050505" stroke-width="4"/>
+<text x="60" y="84" text-anchor="middle" font-family="Space Mono,monospace" font-weight="700" font-size="30" fill="#050505">1</text>
+<rect x="53" y="40" width="14" height="12" fill="#D9A073" stroke="#050505" stroke-width="3"/>
+<path d="M74 14Q104 18 100 48Q92 34 76 30Z" fill="#14141A" stroke="#050505" stroke-width="3"/>
+<circle cx="60" cy="28" r="17" fill="#D9A073" stroke="#050505" stroke-width="4"/>
+<path d="M43 28Q44 8 60 8Q77 8 77 28Q70 18 60 18Q50 18 43 28Z" fill="#14141A"/>
+<circle cx="54" cy="29" r="2" fill="#050505"/><circle cx="67" cy="29" r="2" fill="#050505"/>
+<path d="M54 35Q60 39 67 34" stroke="#050505" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<circle cx="12" cy="28" r="13" fill="#FF5500" stroke="#050505" stroke-width="4"/><circle cx="108" cy="28" r="13" fill="#FF5500" stroke="#050505" stroke-width="4"/>
+</svg>
+</div>
+<div class="ball" id="ball"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#050505" stroke-width="3"/><polygon points="20,11 29,17 26,28 14,28 11,17" fill="#050505"/></svg></div>
+</div>
+<div id="speech"></div>
+</div>
+<button class="b" id="reset" style="display:flex;margin:16px auto 0;font-size:13px;background:var(--a3)">RESET</button>
+</div>
+</section>
+
+<section class="sec" id="passport">
+<div class="lab">03 // PASSPORT</div>
+<h2>12 stamps,<br>and counting.</h2>
+<div class="mono" id="readout" style="margin:0 0 24px;font-size:15px;color:var(--pop)">&gt; TAP A STAMP</div>
+<div class="stamps" id="stamps"></div>
+</section>
+
+<section class="sec" style="padding-top:72px">
+<div class="term"><div style="color:#00F0FF">04 // TERMINAL</div><div style="margin-top:8px">&gt; name: "eeshika jakka"</div><div>&gt; position: "goalkeeper"</div><div>&gt; stream: "science" [active]</div><div>&gt; next: "stem"</div><div>&gt; status: "running"<span class="cur" style="animation:blink 1s infinite">_</span></div></div>
+</section>
+
+<section class="sec" id="faq">
+<div class="lab">05 // FAQ</div>
+<h2>Classified,<br>mostly.</h2>
+<p class="mono" style="margin:0 0 28px;font-size:14px">Tap a black bar to declassify the answer.</p>
+<div id="faqs"></div>
+</section>
+
+<footer>
+<div style="display:flex;align-items:center;gap:12px"><span class="mono-box">EJ</span><div><div class="syne" style="font-size:18px">Eeshika Jakka</div><div style="color:#C9CBE0">UAE // &copy; <span id="yr"></span> // made by a mysterious source</div></div></div>
+<div style="color:#CCFF00">KEEPER // STEM // DOGS // ASIAN FOOD</div>
+<a class="b" href="#top" style="box-shadow:none;background:#CCFF00;color:#050505;border-color:#CCFF00">&uarr; BACK TO TOP</a>
+</footer>
+</div>
+
