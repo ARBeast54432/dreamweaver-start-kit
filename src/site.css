@@ -131,3 +131,5 @@ a,button,.stamp,.bar,[role=button],.dog{cursor:url("data:image/svg+xml,%3Csvg xm
 .zz{position:absolute;top:-10px;right:0;font:800 14px Syne,sans-serif;color:var(--ink);animation:zz 2s infinite}
 @media (max-width:600px){.dog{width:48px;height:42px}#yard{height:56px}}
 @media (hover:none){html,body,*{cursor:auto}}
+.pin text{opacity:0;transition:opacity .2s}.pin.on text{opacity:1}
+.stamp .n{overflow-wrap:normal;word-break:normal;font-size:clamp(11px,1.2vw,16px)}
