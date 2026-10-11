@@ -82,8 +82,7 @@ h1 em{color:var(--pop)}
 .tfx canvas{position:absolute;inset:0;width:100%;height:100%}
 .tball{position:absolute;left:0;bottom:14px;width:30px;height:30px;border-radius:50%;opacity:0;background:radial-gradient(circle at 50% 50%,#14141A 0 22%,transparent 23%),#fff;border:2px solid #14141A;transform-origin:50% 100%}
 .tplane{position:absolute;left:0;top:28px;font-size:26px;opacity:0;color:var(--ink)}
-.tbowlfx{position:absolute;left:0;bottom:60px;font-size:26px;opacity:0;display:flex;flex-direction:column;align-items:center;line-height:1}
-.tbowlfx .st,.tbowl .stm{display:inline-block;animation:steam 1.6s ease-in-out infinite;font-size:12px;color:var(--ink)}
+.tbowl .stm{display:inline-block;animation:steam 1.6s ease-in-out infinite;font-size:12px;color:var(--ink)}
 .tbowl .stm{color:#00F0FF;font-size:inherit}
 @keyframes steam{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-4px);opacity:1}}
 .term{position:relative;z-index:1;max-width:640px;background:#050505;color:#CCFF00;border:3px solid var(--line);box-shadow:var(--sh);font:700 15px/1.7 'Space Mono',monospace;cursor:text}
@@ -109,7 +108,7 @@ h1 em{color:var(--pop)}
 @media (max-width:420px){.tchrome .tlab{display:none}.tps{font-size:12px}.tout{padding:10px 12px 4px}.tline{padding:6px 12px 12px}}
 .rainp{position:fixed;top:-40px;z-index:9999;pointer-events:none;font-size:22px;animation:rainfall linear forwards}
 @keyframes rainfall{to{transform:translateY(110vh) rotate(540deg)}}
-@media (prefers-reduced-motion:reduce){.tbowl .stm,.tbowlfx .st{animation:none}}
+@media (prefers-reduced-motion:reduce){.tbowl .stm,.nbowl .st,.nbowl .bw{animation:none}}
 .faq{padding:20px;max-width:860px;margin-bottom:16px}
 .faq .q{font-size:19px;line-height:1.25}
 .bar{width:100%;min-height:48px;margin-top:12px;padding:10px 14px;text-align:left;background:var(--bar);color:var(--barfg);border:3px solid var(--line);font:700 15px/1.4 'Space Mono',monospace}
@@ -232,3 +231,21 @@ h1{overflow-wrap:normal;word-break:keep-all}
 .dog.sit .tongue{opacity:1}
 .dog.sit .tail{animation-duration:.25s}
 .dog-hint{position:fixed;left:16px;bottom:16px;z-index:45;max-width:calc(100vw - 200px);min-width:120px;padding:6px 10px;background:var(--bar);color:var(--barfg);border:3px solid var(--line);font:700 12px/1.4 'Space Mono',monospace;transition:opacity .6s;pointer-events:none}
+
+/* ---------- noodle bowl that roams the whole site ---------- */
+.nbowl{position:absolute;left:0;top:0;width:64px;height:60px;padding:0;background:none;border:0;pointer-events:auto;z-index:2;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition-property:transform;transition-timing-function:ease-in-out}
+.nbowl,.nbowl *{cursor:grab}
+.nbowl.held,.nbowl.held *{cursor:grabbing}
+.nbowl svg{display:block;width:100%;height:100%;overflow:visible;color:var(--ink)}
+.nbowl .bw{display:block;width:100%;height:100%;filter:drop-shadow(0 3px 0 rgba(20,20,26,.25));animation:nbob 1.6s ease-in-out infinite alternate}
+.nbowl .st{animation:steam 1.6s ease-in-out infinite}
+.nbowl .nd{transition:opacity .3s}
+.nbowl.empty .nd{opacity:0}
+.nbowl.held{z-index:60}
+.nbowl.held .bw{animation:none;transform:rotate(-8deg) scale(1.15)}
+.nbowl.hit .bw{animation:nhit .45s ease-out}
+.nbowl .nsay{position:absolute;top:-34px;left:50%;transform:translateX(-50%);font:800 13px/1.3 'Space Grotesk',sans-serif;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:2px 8px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}
+.nbowl .nsay.show{opacity:1}
+@keyframes nbob{to{transform:translateY(-4px) rotate(2deg)}}
+@keyframes nhit{0%{transform:scale(1)}40%{transform:scale(1.25,.8)}100%{transform:scale(1)}}
+@media (max-width:600px){.nbowl{width:52px;height:48px}}
