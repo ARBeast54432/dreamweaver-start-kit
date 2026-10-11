@@ -177,3 +177,26 @@ h1{overflow-wrap:normal;word-break:keep-all}
 .map .ld.visit{fill:var(--a3);stroke-width:.9;transition:fill .25s}
 .map .ld.visit.seen{fill:var(--a1)}
 .map .ld.visit.on{fill:var(--pop)}
+
+/* ---------- dogs: pick up / drop / sit ---------- */
+.dog{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.dog,.dog *{cursor:grab}
+.dog.held,.dog.held *{cursor:grabbing}
+.dog.held{z-index:60}
+.dog.held .body{transform:scaleX(var(--f,1)) translateY(-12px) rotate(-6deg) scale(1.15)}
+.dog.held svg{filter:drop-shadow(0 14px 0 rgba(20,20,26,.16))}
+.dog.held .shadow{opacity:.08}
+.dog.held .l1{animation:leg .22s infinite alternate}.dog.held .l2{animation:leg .22s infinite alternate-reverse}
+.dog.held .tail{animation-duration:.2s}
+.dog.held .tongue{opacity:1}
+.dog.plop .body{animation:plop .45s ease-out}
+@keyframes plop{0%{transform:scaleX(var(--f,1)) translateY(-12px)}55%{transform:scaleX(var(--f,1)) scale(1.12,.84)}100%{transform:scaleX(var(--f,1))}}
+.dog .haunch{opacity:0;transition:opacity .2s}
+.dog.sit .haunch{opacity:1}
+.dog.sit .legs rect:nth-child(1),.dog.sit .legs rect:nth-child(2){opacity:0}
+.dog.sit .legs rect:nth-child(3),.dog.sit .legs rect:nth-child(4){transform:translateX(-3px) scaleY(1.8);transform-origin:bottom center}
+.dog.sit .trunk,.dog.sit .patch{transform:rotate(-20deg);transform-box:view-box;transform-origin:15px 60px}
+.dog.sit .head{transform:translate(-6px,-13px)}
+.dog.sit .tongue{opacity:1}
+.dog.sit .tail{animation-duration:.25s}
+.dog-hint{position:fixed;left:16px;bottom:16px;z-index:45;max-width:calc(100vw - 200px);min-width:120px;padding:6px 10px;background:var(--bar);color:var(--barfg);border:3px solid var(--line);font:700 12px/1.4 'Space Mono',monospace;transition:opacity .6s;pointer-events:none}
