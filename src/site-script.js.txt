@@ -214,6 +214,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   }
   const EAT_EVERY=10*60*1000;
   function act(d,forced,user){
+    if(d.stay&&!user) return; // told to sit: stays put until "stand", a drag or treats
+    if(user&&d.stay&&forced==='bark'){clearTimeout(d.t);say(d,'woof (still sitting)',1000);return;}
     clearTimeout(d.t); clear(d);
     if(night()&&!user){d.el.classList.add('sleep');const z=document.createElement('div');z.className='zz';z.textContent='z Z';d.el.appendChild(z);d.t=setTimeout(()=>act(d),5000);return;}
     if(night()&&user){d.el.classList.add('sleep');say(d,'*sleepy woof*',1200);d.t=setTimeout(()=>act(d),1300);return;}
@@ -249,7 +251,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     edge=requestAnimationFrame(edgeScroll);
   }
   function lift(d){
-    if(d.drag) return; d.drag=true; d.busy=true;
+    if(d.drag) return; d.drag=true; d.busy=true; d.stay=false;
     clearTimeout(d.t); clear(d); d.el.classList.add('held');
     say(d,pick(['wheee!','put me down!','careful!','I can see my house','ahh!']),1500);
     if(!edge) edge=requestAnimationFrame(edgeScroll);
@@ -262,10 +264,14 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     d.t=setTimeout(()=>{d.busy=false;act(d);},1200);
     if(!dogs.some(k=>k.drag)){cancelAnimationFrame(edge);edge=0;}
   }
-  function sit(d){
-    clearTimeout(d.t); clear(d); d.busy=false; d.el.classList.add('sit');
+  function freeze(d){ // stop any walk in progress exactly where the dog is right now
+    const r=d.el.getBoundingClientRect(); d.x=r.left+window.scrollX; d.y=r.top+window.scrollY;
+    d.el.style.transitionDuration='0ms'; d.el.style.transform='translate('+d.x+'px,'+d.y+'px)';
+  }
+  function sit(d,stay){
+    clearTimeout(d.t); clear(d); freeze(d); d.busy=false; d.el.classList.add('sit'); d.stay=!!stay;
     say(d,night()?'*yawn* ok.':pick(['sitting pretty','good dog.','*pant pant*','sit. done.']),2500);
-    d.t=setTimeout(()=>act(d),10000);
+    if(!stay) d.t=setTimeout(()=>act(d),10000);
   }
   function tap(d){
     const t=Date.now();
@@ -320,7 +326,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     btn.disabled=true;
     let done=0;
     crew.forEach((d,i)=>{
-      clearTimeout(d.t);clear(d);d.busy=true;d.treat=true;
+      clearTimeout(d.t);clear(d);d.busy=true;d.treat=true;d.stay=false;
       if(night()) say(d,'!! treats?!',900); else say(d,'TREAT!!',900);
       d.el.classList.add('run');
       const tx=bx-DW()/2+(i-1)*(DW()*.75), ty=by-DW()*.75;
@@ -333,7 +339,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   };
   window.__ej=Object.assign(window.__ej||{},{
     treat:()=>{if(btn.disabled||bowl) return false; btn.onclick(); return true;},
-    sitAll:()=>dogs.forEach(d=>{if(!d.drag&&!d.treat) sit(d);}),
+    sitAll:()=>dogs.forEach(d=>{if(!d.drag&&!d.treat) sit(d,true);}),
+    standAll:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'chill',true); say(d,pick(['up!','standing.','ok, free?']),1500);}),
     dogs
   });
 })();
@@ -348,10 +355,40 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       s.style.color='var(--a'+(1+Math.floor(Math.random()*5))+')';
       document.body.appendChild(s);setTimeout(()=>s.remove(),4500);}
   }
+  const noodles=()=>rain(['🍜','〰','~','🥢'],36);
   window.__ej=Object.assign(window.__ej||{},{
     setTheme, fly:(c)=>window.__fly&&window.__fly(c),
-    noodles:()=>rain(['🍜','〰','~','🥢'],36),
-    confetti:()=>rain(['■','●','▲','★','◆'],70)
+    noodles, confetti:()=>rain(['■','●','▲','★','◆'],70)
+  });
+
+  /* roaming noodle bowl: drifts around the whole site, tap it */
+  const yard=document.getElementById('yard'); if(!yard) return;
+  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nb=document.createElement('button');
+  nb.className='nbowl'; nb.setAttribute('aria-label','Noodle bowl. Tap it.');
+  nb.innerHTML='<span class="st">~ ~ ~</span><span class="bw">🍜</span><span class="nsay"></span>';
+  yard.appendChild(nb);
+  let x=innerWidth*.6, y=scrollY+innerHeight*.5, mt=0, n=0;
+  const place=(dur)=>{nb.style.transitionDuration=dur+'ms';nb.style.transform='translate('+x+'px,'+y+'px)';};
+  function drift(){
+    clearTimeout(mt);
+    const near=Math.random()<.5, H=yard.clientHeight||innerHeight;
+    const tx=20+Math.random()*(innerWidth-90), ty=near?scrollY+60+Math.random()*(innerHeight-160):Math.random()*(H-80);
+    const d=Math.hypot(tx-x,ty-y); x=tx; y=ty;
+    const dur=RM?0:Math.max(2000,d/40*1000); place(dur);
+    mt=setTimeout(drift,dur+2000+Math.random()*3000);
+  }
+  place(0); setTimeout(drift,1500);
+  const lines=['slurp.','fresh noodles.','extra spicy.','chef: eeshika.','recipe: classified.','still hot.'];
+  nb.addEventListener('click',()=>{
+    n++; const s=nb.querySelector('.nsay');
+    s.textContent=n%5===0?'okay, noodle rain.':lines[Math.floor(Math.random()*lines.length)];
+    nb.classList.remove('hit'); void nb.offsetWidth; nb.classList.add('hit'); s.classList.add('show');
+    clearTimeout(nb.st); nb.st=setTimeout(()=>s.classList.remove('show'),1600);
+    if(n%5===0) noodles();
+    const ds=(window.__ej&&window.__ej.dogs)||[];
+    ds.forEach(d=>{const s2=d.el.querySelector('.say');if(s2&&!d.drag&&!d.el.classList.contains('sleep')&&Math.hypot(d.x-x,d.y-y)<300){s2.textContent='noodles?!';s2.classList.add('show');setTimeout(()=>s2.classList.remove('show'),1200);}});
+    drift();
   });
 })();
 
@@ -450,7 +487,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
 
   /* background fx: one rAF loop, paused off screen / hidden / reduced motion */
   if(RM) return;
-  const cv=$('#tcode'), cx=cv.getContext('2d'), ball=$('#tball'), plane=$('#tplane'), nb=$('#tbowlfx');
+  const cv=$('#tcode'), cx=cv.getContext('2d'), ball=$('#tball'), plane=$('#tplane');
   let vis=false, raf=0, cols=[], W=0, H=0, last=0;
   const FS=14;
   function size(){W=cv.width=sec.clientWidth;H=cv.height=sec.clientHeight;cols=Array.from({length:Math.ceil(W/FS)},()=>Math.random()*H/FS);}
@@ -471,7 +508,6 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     const bp=(s%9)/3; if(bp<1){const x=-40+bp*(W+80), b=Math.abs(Math.sin(bp*Math.PI*4)), y=-b*90, sq=b<.15?1.35:1;
       ball.style.opacity=1; ball.style.transform='translate('+x+'px,'+y+'px) scale('+sq+','+(2-sq)+') rotate('+bp*900+'deg)';} else ball.style.opacity=0;
     const pp2=(s%20)/5; if(pp2<1){plane.style.opacity=1;plane.style.transform='translate('+(W+40-pp2*(W+120))+'px,'+(Math.sin(pp2*6)*10)+'px) scaleX(-1)';} else plane.style.opacity=0;
-    const np=((s+10)%26)/8; if(np<1){nb.style.opacity=1;nb.style.transform='translate('+(-60+np*(W+120))+'px,'+(Math.sin(np*9)*6)+'px)';} else nb.style.opacity=0;
     raf=requestAnimationFrame(frame);
   }
   const go=()=>{if(vis&&!document.hidden&&!raf) raf=requestAnimationFrame(frame);};
