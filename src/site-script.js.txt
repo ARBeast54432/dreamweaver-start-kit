@@ -165,8 +165,9 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
    '<g class="b2">'+
     '<path class="tail" d="M16 44 Q4 38 8 26" stroke="'+c[1]+'" stroke-width="6" fill="none" stroke-linecap="round"/>'+
     '<g class="legs" fill="'+c[0]+'" stroke="#14141A" stroke-width="2"><rect class="l1" x="20" y="52" width="8" height="13" rx="4"/><rect class="l2" x="31" y="53" width="8" height="12" rx="4"/><rect class="l1" x="42" y="53" width="8" height="12" rx="4"/><rect class="l2" x="51" y="52" width="8" height="13" rx="4"/></g>'+
-    '<ellipse cx="38" cy="47" rx="23" ry="13" fill="'+c[0]+'" stroke="#14141A" stroke-width="2.2"/>'+
-    '<ellipse cx="30" cy="44" rx="7" ry="5" fill="'+c[1]+'" opacity=".55"/>'+
+    '<ellipse class="trunk" cx="38" cy="47" rx="23" ry="13" fill="'+c[0]+'" stroke="#14141A" stroke-width="2.2"/>'+
+    '<ellipse class="patch" cx="30" cy="44" rx="7" ry="5" fill="'+c[1]+'" opacity=".55"/>'+
+    '<ellipse class="haunch" cx="25" cy="57" rx="11" ry="8" fill="'+c[0]+'" stroke="#14141A" stroke-width="2.2"/>'+
     '<g class="head">'+
      '<path class="ear" d="M42 14 Q34 12 33 26 Q34 36 41 32 Z" fill="'+c[1]+'" stroke="#14141A" stroke-width="2.2"/>'+
      '<circle cx="54" cy="27" r="17" fill="'+c[0]+'" stroke="#14141A" stroke-width="2.2"/>'+
@@ -189,6 +190,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     const hide=site.hidden;
     yard.style.display=hide?'none':'block';
     const bt=document.querySelector('.treat'); if(bt) bt.style.display=hide?'none':'';
+    const ht=document.querySelector('.dog-hint'); if(ht) ht.style.display=hide?'none':'';
     if(hide) return;
     yard.style.height=Math.max(site.getBoundingClientRect().bottom+window.scrollY,H())+'px';
   }
@@ -196,12 +198,12 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   const dogs=['Veni','Vidi','Vici'].map((n,i)=>{const el=document.createElement('div');el.className='dog';
     el.innerHTML='<div class="say"></div><div class="nm">'+n.toUpperCase()+'</div><div class="body">'+svg(cols[i])+'</div>';
     yard.appendChild(el);
-    const d={el,n,x:W()*(.15+i*.3),y:window.scrollY+H()*(.3+Math.random()*.5),f:1,t:0,ate:Date.now(),busy:false};
+    const d={el,n,x:W()*(.15+i*.3),y:window.scrollY+H()*(.3+Math.random()*.5),f:1,t:0,ate:Date.now(),busy:false,drag:false,down:false,treat:false,lastTap:0};
     el.style.transform='translate('+d.x+'px,'+d.y+'px)';
-    el.addEventListener('click',()=>{if(!d.busy) act(d,'bark',true);});return d;});
+    return d;});
   const night=()=>root.dataset.theme==='dark';
   const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');clearTimeout(d.st);d.st=setTimeout(()=>s.classList.remove('show'),ms);};
-  function clear(d){d.el.classList.remove('walk','run','eat','bark','sleep');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
+  function clear(d){d.el.classList.remove('walk','run','eat','bark','sleep','sit','held','plop');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
   function moveTo(d,x,y,speed){ // speed px/s
     x=Math.max(4,Math.min(W()-DW()-4,x)); y=Math.max(4,Math.min(DH()-DW()-4,y));
     const dist=Math.hypot(x-d.x,y-d.y); d.f=x>=d.x?1:-1;
@@ -229,8 +231,75 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);d.t=setTimeout(()=>act(d),1200);}
     else {say(d,['chillin ☀','*yawn*','*sniff sniff*','♥'][Math.floor(Math.random()*4)],1800);d.t=setTimeout(()=>act(d),3000+Math.random()*3000);}
   }
+
+  /* ---------- play with the dogs: hold + drag to pick up, let go to drop, tap = bark, double tap = sit ---------- */
+  let pcx=0,pcy=0,edge=0;
+  const pick=(a)=>a[Math.floor(Math.random()*a.length)];
+  function dragPos(d){ // the dog hangs from the spot you grabbed it, in page coordinates
+    const nx=Math.max(4,Math.min(W()-DW()-4,pcx+window.scrollX-d.ox)), ny=Math.max(4,Math.min(DH()-DW()-4,pcy+window.scrollY-d.oy));
+    if(nx>d.x+1) d.f=1; else if(nx<d.x-1) d.f=-1;
+    d.el.querySelector('.body').style.setProperty('--f',d.f);
+    d.x=nx; d.y=ny; d.el.style.transform='translate('+nx+'px,'+ny+'px)';
+  }
+  function edgeScroll(){ // holding a dog near the top/bottom edge scrolls the page so you can carry it anywhere
+    edge=0; const d=dogs.find(k=>k.drag); if(!d) return;
+    const z=90; let dy=0;
+    if(pcy<z) dy=-Math.ceil((z-pcy)/5); else if(pcy>H()-z) dy=Math.ceil((pcy-(H()-z))/5);
+    if(dy){window.scrollBy({top:dy,left:0,behavior:'instant'}); dragPos(d);}
+    edge=requestAnimationFrame(edgeScroll);
+  }
+  function lift(d){
+    if(d.drag) return; d.drag=true; d.busy=true;
+    clearTimeout(d.t); clear(d); d.el.classList.add('held');
+    say(d,pick(['wheee!','put me down!','careful!','I can see my house','ahh!']),1500);
+    if(!edge) edge=requestAnimationFrame(edgeScroll);
+  }
+  function putDown(d){
+    if(!d.drag) return; d.drag=false;
+    d.el.classList.remove('held'); d.el.classList.add('plop');
+    say(d,pick(['new spot!','ok then.','*shakes off*','thx','nice view']),1500);
+    setTimeout(()=>d.el.classList.remove('plop'),450);
+    d.t=setTimeout(()=>{d.busy=false;act(d);},1200);
+    if(!dogs.some(k=>k.drag)){cancelAnimationFrame(edge);edge=0;}
+  }
+  function sit(d){
+    clearTimeout(d.t); clear(d); d.busy=false; d.el.classList.add('sit');
+    say(d,night()?'*yawn* ok.':pick(['sitting pretty','good dog.','*pant pant*','sit. done.']),2500);
+    d.t=setTimeout(()=>act(d),10000);
+  }
+  function tap(d){
+    const t=Date.now();
+    if(t-d.lastTap<350){ d.lastTap=0; if(d.sitBefore) act(d); else sit(d); } // double tap: sit (on a sitting dog: stand up)
+    else { d.sitBefore=d.el.classList.contains('sit'); d.lastTap=t; act(d,'bark',true); }                                                       // single tap: bark
+  }
+  function attach(d){
+    const el=d.el;
+    el.addEventListener('pointerdown',(e)=>{
+      if(d.treat||e.button>0) return;
+      e.preventDefault();
+      const r=el.getBoundingClientRect(); // freeze the dog exactly where it is on screen
+      d.x=r.left+window.scrollX; d.y=r.top+window.scrollY;
+      el.style.transitionDuration='0ms'; el.style.transform='translate('+d.x+'px,'+d.y+'px)';
+      d.ox=e.clientX+window.scrollX-d.x; d.oy=e.clientY+window.scrollY-d.y;
+      d.sx=e.clientX; d.sy=e.clientY; pcx=e.clientX; pcy=e.clientY; d.down=true;
+      try{el.setPointerCapture(e.pointerId);}catch(_){}
+      clearTimeout(d.hold); d.hold=setTimeout(()=>{if(d.down) lift(d);},220); // press and hold also picks it up
+    });
+    el.addEventListener('pointermove',(e)=>{
+      if(!d.down) return; pcx=e.clientX; pcy=e.clientY;
+      if(!d.drag&&Math.hypot(e.clientX-d.sx,e.clientY-d.sy)>6) lift(d);
+      if(d.drag) dragPos(d);
+    });
+    const end=(e)=>{
+      if(!d.down) return; d.down=false; clearTimeout(d.hold);
+      if(d.drag) putDown(d); else if(e.type==='pointerup') tap(d);
+    };
+    el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
+  }
+  dogs.forEach(attach);
+  window.addEventListener('scroll',()=>{const d=dogs.find(k=>k.drag); if(d) dragPos(d);},{passive:true});
   dogs.forEach((d,i)=>setTimeout(()=>act(d),i*700));
-  new MutationObserver(()=>dogs.forEach(d=>{if(!d.busy) act(d);})).observe(root,{attributes:true,attributeFilter:['data-theme']});
+  new MutationObserver(()=>dogs.forEach(d=>{if(!d.busy&&!d.drag) act(d);})).observe(root,{attributes:true,attributeFilter:['data-theme']});
   window.addEventListener('resize',()=>{sync();dogs.forEach(d=>moveTo(d,d.x,d.y,9999));});
   window.addEventListener('load',sync);
   if('ResizeObserver' in window) new ResizeObserver(sync).observe(site);
@@ -238,23 +307,27 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   /* treat button */
   const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<svg aria-hidden="true" width="22" height="12" viewBox="0 0 44 24"><path d="M10 4a5 5 0 0 1 9 2h6a5 5 0 1 1 9 4 5 5 0 1 1-9 4h-6a5 5 0 1 1-9-4 5 5 0 0 1 0-6z" fill="#fff" stroke="#14141A" stroke-width="2.5"/></svg> GIVE TREATS';
   document.body.appendChild(btn);
+  const hint=document.createElement('div');hint.className='dog-hint';hint.textContent='DOGS: DRAG TO MOVE // TAP = BARK // DOUBLE TAP = SIT';document.body.appendChild(hint);
+  setTimeout(()=>{hint.style.opacity=0;},9000);setTimeout(()=>hint.remove(),9700);
   let bowl=null;
   btn.onclick=()=>{
     if(bowl) return;
     const bx=W()*(.25+Math.random()*.5), by=window.scrollY+H()*(.4+Math.random()*.35);
     bowl=document.createElement('div');bowl.className='tbowl';bowl.innerHTML='<i></i><i></i><i></i>';
     bowl.style.left=bx+'px';bowl.style.top=by+'px';yard.appendChild(bowl);
+    const crew=dogs.filter(k=>!k.drag);
+    if(!crew.length){bowl.remove();bowl=null;return;}
     btn.disabled=true;
     let done=0;
-    dogs.forEach((d,i)=>{
-      clearTimeout(d.t);clear(d);d.busy=true;
+    crew.forEach((d,i)=>{
+      clearTimeout(d.t);clear(d);d.busy=true;d.treat=true;
       if(night()) say(d,'!! treats?!',900); else say(d,'TREAT!!',900);
       d.el.classList.add('run');
       const tx=bx-DW()/2+(i-1)*(DW()*.75), ty=by-DW()*.75;
       const dur=moveTo(d,tx,ty,420);
       setTimeout(()=>{clear(d);d.f=bx>d.x+DW()/2?1:-1;d.el.querySelector('.body').style.setProperty('--f',d.f);d.el.classList.add('eat');say(d,'yum!',2400);d.ate=Date.now();
-        setTimeout(()=>{d.busy=false;say(d,'♥ thank u',1500);done++;
-          if(done===3){bowl.classList.add('gone');setTimeout(()=>{bowl&&bowl.remove();bowl=null;btn.disabled=false;},400);}
+        setTimeout(()=>{d.busy=false;d.treat=false;say(d,'♥ thank u',1500);done++;
+          if(done===crew.length){bowl.classList.add('gone');setTimeout(()=>{bowl&&bowl.remove();bowl=null;btn.disabled=false;},400);}
           d.t=setTimeout(()=>act(d),1500);},3000);},dur);
     });
   };
