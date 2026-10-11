@@ -65,9 +65,10 @@ const L = ['TOP LEFT', 'TOP MID', 'TOP RIGHT', 'LOW LEFT', 'LOW MID', 'LOW RIGHT
 const Q = ['Better luck next time.', 'Not today.', 'Nice try. Really.', 'Was that your best?', 'Too easy.', 'I saw that coming.', 'Cute.', 'Try the other corner. Same result.', 'Next.', 'Zero goals. Still zero.'];
 $('#zones').innerHTML = L.map((l, i) => '<button class="zone" data-z="' + i + '" aria-label="Shoot ' + l.toLowerCase() + '"></button>').join('');
 const gk = $('#gk'), ball = $('#ball'), speech = $('#speech');
-let busy = false, saves = 0, last = -1, timer;
+let busy = false, saves = 0, last = -1, timer, poseT;
 function rest() {
   busy = false;
+  clearTimeout(poseT); gk.dataset.pose = 'ready';
   gk.style.left = '50%'; gk.style.top = '62%'; gk.style.transform = 'translate(-50%,-50%)';
   ball.style.left = '50%'; ball.style.top = '112%';
   speech.style.opacity = 0; $('#status').textContent = 'GO AGAIN.';
@@ -79,7 +80,10 @@ $('#zones').onclick = (e) => {
   busy = true;
   const z = +b.dataset.z, col = z % 3;
   gk.style.left = P[z][0] + '%'; gk.style.top = P[z][1] + '%';
-  gk.style.transform = 'translate(-50%,-50%) rotate(' + (col === 0 ? -60 : col === 2 ? 60 : 0) + 'deg)';
+  gk.style.transform = 'translate(-50%,-50%)';
+  // pick the pose for the zone you shot at, then celebrate once the save is made
+  gk.dataset.pose = z === 1 ? 'save-high' : z === 4 ? 'save-low' : col === 0 ? 'dive-left' : 'dive-right';
+  clearTimeout(poseT); poseT = setTimeout(() => { if (busy) gk.dataset.pose = 'celebrate'; }, 520);
   ball.style.left = P[z][0] + '%'; ball.style.top = P[z][1] + '%';
   b.classList.add('hit');
   let i = Math.floor(Math.random() * Q.length);
@@ -203,7 +207,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     return d;});
   const night=()=>root.dataset.theme==='dark';
   const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');clearTimeout(d.st);d.st=setTimeout(()=>s.classList.remove('show'),ms);};
-  function clear(d){d.el.classList.remove('walk','run','eat','bark','sleep','sit','held','plop');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
+  function clear(d){d.chasing=false;d.el.classList.remove('walk','run','eat','bark','sleep','sit','held','plop');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
   function moveTo(d,x,y,speed){ // speed px/s
     x=Math.max(4,Math.min(W()-DW()-4,x)); y=Math.max(4,Math.min(DH()-DW()-4,y));
     const dist=Math.hypot(x-d.x,y-d.y); d.f=x>=d.x?1:-1;
@@ -297,7 +301,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       if(d.drag) dragPos(d);
     });
     const end=(e)=>{
-      if(!d.down) return; d.down=false; clearTimeout(d.hold);
+      if(!d.down) return; d.down=false; clearTimeout(d.hold); window.__ejT=Date.now();
       if(d.drag) putDown(d); else if(e.type==='pointerup') tap(d);
     };
     el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
@@ -352,8 +356,26 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     });
     return true;
   }
+  function chase(px,py,onArrive){ // nearest free dog runs to a ball at page coords (px,py); calls onArrive(dog) when it gets there
+    const free=dogs.filter(k=>!k.drag&&!k.treat&&!k.stay&&!k.chasing&&!k.el.classList.contains('sleep'));
+    if(!free.length) return false;
+    free.sort((a,b)=>Math.hypot(a.x-px,a.y-py)-Math.hypot(b.x-px,b.y-py));
+    const d=free[0];
+    clearTimeout(d.t); clear(d); d.chasing=true; d.busy=true;
+    say(d,pick(['ball!','mine!','on it!']),900);
+    d.el.classList.add('run');
+    const dur=moveTo(d,px-DW()/2,py-DW()*.8,380);
+    d.t=setTimeout(()=>{
+      if(!d.chasing) return;
+      clear(d); d.f=px>d.x+DW()/2?1:-1; d.el.querySelector('.body').style.setProperty('--f',d.f);
+      d.el.classList.add('bark'); say(d,pick(['got it!','nice.','heh.','mine now.']),1300);
+      if(onArrive) onArrive(d);
+      d.t=setTimeout(()=>{d.busy=false;act(d);},1000);
+    },dur);
+    return true;
+  }
   window.__ej=Object.assign(window.__ej||{},{
-    feedAt,
+    feedAt, chase,
     treat:()=>{if(btn.disabled||bowl) return false; btn.onclick(); return true;},
     sitAll:()=>dogs.forEach(d=>{if(!d.drag&&!d.treat) sit(d,true);}),
     standAll:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'chill',true); say(d,pick(['up!','standing.','ok, free?']),1500);}),
@@ -431,12 +453,96 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     if(held){x=clamp(e.clientX+scrollX-ox,4,(yard.clientWidth||innerWidth)-BW()-4);y=clamp(e.clientY+scrollY-oy,4,(yard.clientHeight||innerHeight)-BW()-4);place(0);}
   });
   const up=(e)=>{
-    if(!down) return; down=false;
+    if(!down) return; down=false; window.__ejT=Date.now();
     if(held){held=false;nb.classList.remove('held');drop();}
     else if(e.type==='pointerup') tap();
   };
   nb.addEventListener('pointerup',up); nb.addEventListener('pointercancel',up);
   nb.addEventListener('click',(e)=>{if(e.detail===0) tap();}); // keyboard (Enter / Space)
+})();
+
+/* ---------- kick a ball anywhere: click or tap empty space ---------- */
+(function(){
+  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const layer=document.createElement('div'); layer.id='klayer'; document.body.appendChild(layer);
+  const BALL='<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#14141A" stroke-width="3"/><polygon points="20,11 29,17 26,28 14,28 11,17" fill="#14141A"/><path d="M20 11V4.5M29 17L35 14.5M26 28L30.5 33.5M14 28L9.5 33.5M11 17L5 14.5" stroke="#14141A" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  const balls=[]; let raf=0, last=0;
+  const R=()=>innerWidth<600?14:18, G=1900;
+  const floor=()=>innerHeight-R()-4;
+  function kill(b){ if(b.dead) return; b.dead=true; b.el.remove(); b.sh.remove(); const i=balls.indexOf(b); if(i>-1) balls.splice(i,1); }
+  function wake(){ if(!raf&&!document.hidden&&balls.length){last=0;raf=requestAnimationFrame(step);} }
+  document.addEventListener('visibilitychange',wake);
+  function spawn(x,y){
+    while(balls.length>=2) kill(balls[0]);
+    const r=R(), el=document.createElement('div'), sh=document.createElement('i');
+    el.className='kball'; el.innerHTML=BALL; sh.className='ksh';
+    el.style.width=el.style.height=(2*r)+'px'; sh.style.width=(2*r)+'px'; sh.style.height=(r*.5)+'px';
+    layer.appendChild(sh); layer.appendChild(el);
+    const b={el,sh,x:Math.max(r,Math.min(innerWidth-r,x)),y:Math.min(floor(),Math.max(r,y)),vx:(Math.random()-.5)*720,vy:-(520+Math.random()*440),rot:0,sq:0,age:0,rest:0,hold:false,chased:false,dead:false};
+    balls.push(b);
+    if(RM){ // no physics: show it briefly where you clicked
+      place(b,1,1); b.sh.style.opacity=0;
+      setTimeout(()=>{el.style.opacity=0;},900); setTimeout(()=>kill(b),1400); return b;
+    }
+    place(b,1,1); wake(); return b;
+  }
+  function place(b,sx,sy){
+    const r=R(), fy=floor()+r, h=Math.max(0,Math.min(1,(floor()-b.y)/380));
+    b.el.style.transform='translate('+(b.x-r)+'px,'+(b.y-r)+'px) rotate('+b.rot+'deg) scale('+sx+','+sy+')';
+    b.sh.style.transform='translate('+(b.x-r)+'px,'+(fy-r*.2)+'px) scale('+(1-h*.55)+',1)';
+    b.sh.style.opacity=(.38*(1-h*.6)).toFixed(2);
+  }
+  function step(t){
+    raf=0; if(document.hidden||!balls.length){last=0;return;}
+    const dt=Math.min(.033,((t-(last||t))/1000)||.016); last=t;
+    const r=R(), fl=floor(), W=innerWidth;
+    balls.slice().forEach(b=>{
+      b.age+=dt; b.vy+=G*dt; b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(b.x<r){b.x=r;b.vx=Math.abs(b.vx)*.65;} else if(b.x>W-r){b.x=W-r;b.vx=-Math.abs(b.vx)*.65;}
+      if(b.y<r){b.y=r;b.vy=Math.abs(b.vy)*.4;}
+      let onFloor=false;
+      if(b.y>=fl){ b.y=fl;
+        if(b.vy>160){b.vy=-b.vy*.58;b.vx*=.9;b.sq=1;} else {b.vy=0;onFloor=true;}
+      }
+      if(onFloor){const f=380*dt; b.vx=Math.abs(b.vx)<=f?0:b.vx-Math.sign(b.vx)*f;}
+      b.rot+=b.vx*dt*(180/(Math.PI*r));
+      b.sq*=Math.exp(-dt*14);
+      b.rest=(onFloor&&b.vx===0)?b.rest+dt:0;
+      if(b.rest>.25&&!b.chased){b.chased=true; chaseBall(b);}   // once it has stopped, a dog goes for it
+      if(b.age>14) b.hold=false;
+      if(b.age>6&&!b.hold&&!b.fade){b.fade=true;b.el.style.opacity=0;b.sh.style.opacity=0;setTimeout(()=>kill(b),550);}
+      place(b,1+.3*b.sq,1-.3*b.sq);
+    });
+    if(balls.length) raf=requestAnimationFrame(step); else last=0;
+  }
+  function chaseBall(b){
+    const ej=window.__ej; if(!ej||!ej.chase||b.dead) return;
+    b.hold=true;
+    const ok=ej.chase(b.x+scrollX,b.y+scrollY,(d)=>{
+      b.hold=false; if(b.dead) return;
+      const rc=d.el.getBoundingClientRect();           // head bump: the ball jumps from the dog's head
+      if(rc.bottom>0&&rc.top<innerHeight&&rc.right>0&&rc.left<innerWidth){b.x=rc.left+rc.width/2;b.y=Math.max(R(),rc.top+rc.height*.2);}
+      b.vx=(Math.random()<.5?-1:1)*(260+Math.random()*240); b.vy=-(640+Math.random()*280); b.rest=0; b.age=Math.min(b.age,3.5); b.fade=false;
+      b.el.style.opacity=1; wake();
+    });
+    if(!ok) b.hold=false;
+  }
+  function kick(x,y){
+    if(document.getElementById('site')&&document.getElementById('site').hidden) return;
+    if(typeof x!=='number'){x=innerWidth*(.25+Math.random()*.5);y=innerHeight*.6;}
+    spawn(x,y);
+    if(navigator.vibrate){try{navigator.vibrate(10);}catch(_){}}
+  }
+  window.__ej=Object.assign(window.__ej||{},{kick});
+  // only empty space kicks: never links, buttons, inputs, cards, stamps, FAQ bars, the game, the terminal, dogs or the bowl
+  const IGN='a,button,input,textarea,select,label,summary,[role=button],[contenteditable],.card,.stamp,.bar,.faq,.zone,.scene,.arena,.term,.dog,.nbowl,.map,.frame,header,nav,.treat,.dog-hint,#bday,.tchip,#klayer';
+  document.addEventListener('click',(e)=>{
+    if(e.button||e.defaultPrevented||e.detail===0) return;
+    if(Date.now()-(window.__ejT||0)<450) return;
+    if(window.getSelection&&String(window.getSelection())) return;
+    const t=e.target; if(!(t instanceof Element)||t.closest(IGN)) return;
+    kick(e.clientX,e.clientY);
+  });
 })();
 
 /* ---------- 04 // TERMINAL ---------- */
@@ -472,7 +578,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       if(!p) return print('usage: fly &lt;CODE&gt;. codes: '+pp.map(x=>x[0]).join(' '));
       const m=$('#map'); if(m) m.scrollIntoView({behavior:RM?'auto':'smooth',block:'center'});
       setTimeout(()=>ej('fly',c),RM?0:500); print('route set: → '+c+' ('+esc(p[1])+'). wheels up.');},
-    kick:()=>print('coming soon.'),
+    kick:()=>{ej('kick');print('kick. the dogs noticed.');},
     noodles:()=>{ej('noodles');print('noodle rain. you asked for this.');},
     confetti:()=>{ej('confetti');print('confetti.');}
   };
