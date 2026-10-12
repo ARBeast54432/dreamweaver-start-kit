@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import siteCss from "../site.css?url";
 import body from "../site-body.html?raw";
 import script from "../site-script.js.txt?raw";
@@ -25,9 +25,15 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // React StrictMode runs effects twice in dev, which wired the page up twice (6 dogs, 2 treat buttons).
+    // Wire it once per mounted page.
+    const el = ref.current;
+    if (!el || el.dataset["ejReady"]) return;
+    el.dataset["ejReady"] = "1";
     (window as unknown as { __EJ_DEV__?: boolean }).__EJ_DEV__ = import.meta.env.DEV;
     new Function(script)();
   }, []);
-  return <div dangerouslySetInnerHTML={{ __html: body }} />;
+  return <div ref={ref} dangerouslySetInnerHTML={{ __html: body }} />;
 }
