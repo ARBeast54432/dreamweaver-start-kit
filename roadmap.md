@@ -1,3 +1,7 @@
 - [x] Roaming interactive noodle bowl
 - [x] stand/sit commands, sitting dogs stay still
 - [x] Favicon = EJ logo
+- [ ] Night sky (stars, moon, shooting stars) dark only
+- [ ] Theme by local time on first visit + circular wipe
+- [ ] Surprises: EJ logo x5 confetti, type "noodles", shake = dogs jump, haptics
+- [ ] Polish: safe-area, hamburger <=700px, phone map scroll, taller game, treat/hint spacing, scroll reveal, tilt, focus
