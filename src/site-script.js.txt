@@ -398,6 +398,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     treat:()=>{if(btn.disabled||bowl) return false; btn.onclick(); return true;},
     sitAll:()=>dogs.forEach(d=>{if(!d.drag&&!d.treat) sit(d,true);}),
     standAll:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'chill',true); say(d,pick(['up!','standing.','ok, free?']),1500);}),
+    zoomies:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'walk',true); say(d,pick(['NOODLES?!','zoom!','!!!']),1200);}),
+    jump:()=>dogs.forEach(d=>{const v=d.el.querySelector('svg'); if(!v) return; v.classList.remove('jump'); void v.offsetWidth; v.classList.add('jump'); say(d,pick(['whoa!','earthquake?!','boing']),1000);}),
     dogs
   });
 })();
