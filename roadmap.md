@@ -1,0 +1,3 @@
+- [x] Roaming interactive noodle bowl
+- [x] stand/sit commands, sitting dogs stay still
+- [x] Favicon = EJ logo
