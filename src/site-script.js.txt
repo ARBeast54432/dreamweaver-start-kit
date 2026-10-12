@@ -405,7 +405,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     const st=c.contains('sleep')?'sleeping':c.contains('sit')?'sitting':c.contains('eat')?'eating':c.contains('run')?'running':c.contains('walk')?'walking':c.contains('held')?'being carried':'chilling';
     const pos=y<0?'up the page':y>h?'further down':'on your screen';return d.n.toUpperCase()+' :: '+st+', '+pos;};
   const C={
-    help:()=>print('commands: about dogs cook travel keeper stem whoami date clear sudo<br>site: treat sit night day fly &lt;CODE&gt; kick noodles confetti'),
+    help:()=>print('commands: about dogs cook travel keeper stem whoami date clear sudo<br>site: treat sit stand night day fly &lt;CODE&gt; kick noodles confetti'),
     about:()=>print('Eeshika Jakka. Goalkeeper. Science stream. Cooks. Knows dogs. Based in the UAE.'),
     dogs:()=>{const ds=(window.__ej&&window.__ej.dogs)||[];if(!ds.length) return print('no dogs found. suspicious.');ds.forEach(d=>print('&gt; '+esc(dogWhere(d))));},
     cook:()=>{print('Asian cuisine. Mostly noodles. It turns out well.');print('<pre class="tbowl"><span class="stm">  ) ) )\n ( ( (</span>\n.-~~~~~-.\n\\_______/</pre>');},
@@ -417,7 +417,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     clear:()=>{out.innerHTML='';},
     sudo:()=>print('Nice try.'),
     treat:()=>print(ej('treat')===false?'bowl already out. patience.':'treats deployed. dogs inbound.'),
-    sit:()=>{ej('sitAll');print('all dogs: sitting.');},
+    sit:()=>{ej('sitAll');print('all dogs: sitting. they stay until you type stand.');},
+    stand:()=>{ej('standAll');print('all dogs: standing. free to roam.');},
     night:()=>{ej('setTheme','dark');print('night mode. dogs going to sleep.');},
     day:()=>{ej('setTheme','light');print('day mode. dogs awake.');},
     fly:(a)=>{const c=(a||'').toUpperCase(), p=pp.find(x=>x[0]===c);

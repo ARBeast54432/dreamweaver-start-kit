@@ -232,3 +232,11 @@ h1{overflow-wrap:normal;word-break:keep-all}
 .dog.sit .tongue{opacity:1}
 .dog.sit .tail{animation-duration:.25s}
 .dog-hint{position:fixed;left:16px;bottom:16px;z-index:45;max-width:calc(100vw - 200px);min-width:120px;padding:6px 10px;background:var(--bar);color:var(--barfg);border:3px solid var(--line);font:700 12px/1.4 'Space Mono',monospace;transition:opacity .6s;pointer-events:none}
+.nbowl{position:absolute;left:0;top:0;pointer-events:auto;background:none;border:0;padding:0;font-size:34px;line-height:1;display:flex;flex-direction:column;align-items:center;transition-property:transform;transition-timing-function:ease-in-out;z-index:2}
+.nbowl .st{font:700 12px 'Space Mono',monospace;color:var(--ink);animation:steam 1.6s ease-in-out infinite}
+.nbowl .bw{display:block;filter:drop-shadow(2px 3px 0 rgba(20,20,26,.35))}
+.nbowl.hit .bw{animation:slurp .5s ease}
+.nbowl .nsay{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--card);color:var(--ink);border:2px solid var(--line);font:700 11px 'Space Mono',monospace;padding:2px 6px;opacity:0;transition:opacity .2s;pointer-events:none}
+.nbowl .nsay.show{opacity:1}
+@keyframes slurp{30%{transform:scale(1.35,.75) rotate(-8deg)}60%{transform:scale(.9,1.15) rotate(6deg)}}
+@media (max-width:600px){.nbowl{font-size:26px}}
