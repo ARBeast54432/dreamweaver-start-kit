@@ -1,15 +1,32 @@
 const $ = (s) => document.querySelector(s);
 const root = document.documentElement;
 
-/* ---------- theme (remembers the choice) ---------- */
-function setTheme(t) {
+/* ---------- theme: by local time on a first visit, then the visitor's saved choice ---------- */
+function applyTheme(t) {
   root.dataset.theme = t;
   $('#mode').textContent = t === 'dark' ? 'DAY MODE' : 'NIGHT MODE';
+}
+// user-chosen theme: saved, with a circular wipe from the toggle (fade fallback)
+function setTheme(t) {
   try { localStorage.setItem('theme', t); } catch (e) {}
+  if (root.dataset.theme === t) return;
+  const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!document.startViewTransition || rm) {
+    if (!rm) { root.classList.add('tfade'); setTimeout(() => root.classList.remove('tfade'), 450); }
+    applyTheme(t); return;
+  }
+  const r = $('#mode').getBoundingClientRect();
+  const x = r.width ? r.left + r.width / 2 : innerWidth - 40, y = r.height ? r.top + r.height / 2 : 30;
+  const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+  try {
+    const vt = document.startViewTransition(() => applyTheme(t));
+    vt.ready.then(() => root.animate({ clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + end + 'px at ' + x + 'px ' + y + 'px)'] }, { duration: 550, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
+  } catch (e) { applyTheme(t); }
 }
 let saved = null;
 try { saved = localStorage.getItem('theme'); } catch (e) {}
-setTheme(saved === 'dark' ? 'dark' : 'light');
+if (saved === 'dark' || saved === 'light') applyTheme(saved);
+else { const h = new Date().getHours(); applyTheme(h >= 19 || h < 6 ? 'dark' : 'light'); }
 $('#mode').onclick = () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
 
 /* ---------- date logic: birthday page + countdown ---------- */
@@ -91,6 +108,7 @@ $('#zones').onclick = (e) => {
   last = i;
   speech.textContent = Q[i]; speech.style.opacity = 1;
   saves++; $('#saves').textContent = saves; $('#status').textContent = 'SAVED.';
+  if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
   timer = setTimeout(rest, 1400);
 };
 $('#reset').onclick = () => { clearTimeout(timer); saves = 0; $('#saves').textContent = 0; rest(); $('#status').textContent = 'PICK A SPOT.'; };
@@ -234,7 +252,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       d.el.classList.add(far?'run':'walk');
       const dur=moveTo(d,tx,ty,far?200:70);d.t=setTimeout(()=>act(d),dur);}
     else if(r==='eat'){d.ate=Date.now();d.el.classList.add('eat');say(d,'nom nom',2500);d.t=setTimeout(()=>act(d),3000);}
-    else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);d.t=setTimeout(()=>act(d),1200);}
+    else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);if(user&&navigator.vibrate){try{navigator.vibrate(12);}catch(_){}}d.t=setTimeout(()=>act(d),1200);}
     else {say(d,['chillin ☀','*yawn*','*sniff sniff*','♥'][Math.floor(Math.random()*4)],1800);d.t=setTimeout(()=>act(d),3000+Math.random()*3000);}
   }
 
@@ -263,6 +281,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   function putDown(d){
     if(!d.drag) return; d.drag=false;
     d.el.classList.remove('held'); d.el.classList.add('plop');
+    if(navigator.vibrate){try{navigator.vibrate(18);}catch(_){}}
     say(d,pick(['new spot!','ok then.','*shakes off*','thx','nice view']),1500);
     setTimeout(()=>d.el.classList.remove('plop'),450);
     d.t=setTimeout(()=>{d.busy=false;act(d);},1200);
