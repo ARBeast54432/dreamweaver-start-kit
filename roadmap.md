@@ -1,2 +1,0 @@
-- [x] Roaming interactive noodle bowl + sit/stand fix
-- [x] Favicon = EJ logo
