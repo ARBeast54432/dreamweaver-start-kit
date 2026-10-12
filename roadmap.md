@@ -1,2 +1,2 @@
-- [ ] Roaming interactive noodle bowl + sit/stand fix
-- [ ] Favicon = EJ logo
+- [x] Roaming interactive noodle bowl + sit/stand fix
+- [x] Favicon = EJ logo
