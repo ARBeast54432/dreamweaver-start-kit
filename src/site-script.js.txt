@@ -65,10 +65,9 @@ const L = ['TOP LEFT', 'TOP MID', 'TOP RIGHT', 'LOW LEFT', 'LOW MID', 'LOW RIGHT
 const Q = ['Better luck next time.', 'Not today.', 'Nice try. Really.', 'Was that your best?', 'Too easy.', 'I saw that coming.', 'Cute.', 'Try the other corner. Same result.', 'Next.', 'Zero goals. Still zero.'];
 $('#zones').innerHTML = L.map((l, i) => '<button class="zone" data-z="' + i + '" aria-label="Shoot ' + l.toLowerCase() + '"></button>').join('');
 const gk = $('#gk'), ball = $('#ball'), speech = $('#speech');
-let busy = false, saves = 0, last = -1, timer, poseT;
+let busy = false, saves = 0, last = -1, timer;
 function rest() {
   busy = false;
-  clearTimeout(poseT); gk.dataset.pose = 'ready';
   gk.style.left = '50%'; gk.style.top = '62%'; gk.style.transform = 'translate(-50%,-50%)';
   ball.style.left = '50%'; ball.style.top = '112%';
   speech.style.opacity = 0; $('#status').textContent = 'GO AGAIN.';
@@ -80,10 +79,7 @@ $('#zones').onclick = (e) => {
   busy = true;
   const z = +b.dataset.z, col = z % 3;
   gk.style.left = P[z][0] + '%'; gk.style.top = P[z][1] + '%';
-  gk.style.transform = 'translate(-50%,-50%)';
-  // pick the pose for the zone you shot at, then celebrate once the save is made
-  gk.dataset.pose = z === 1 ? 'save-high' : z === 4 ? 'save-low' : col === 0 ? 'dive-left' : 'dive-right';
-  clearTimeout(poseT); poseT = setTimeout(() => { if (busy) gk.dataset.pose = 'celebrate'; }, 520);
+  gk.style.transform = 'translate(-50%,-50%) rotate(' + (col === 0 ? -60 : col === 2 ? 60 : 0) + 'deg)';
   ball.style.left = P[z][0] + '%'; ball.style.top = P[z][1] + '%';
   b.classList.add('hit');
   let i = Math.floor(Math.random() * Q.length);
@@ -207,7 +203,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     return d;});
   const night=()=>root.dataset.theme==='dark';
   const say=(d,txt,ms)=>{const s=d.el.querySelector('.say');s.textContent=txt;s.classList.add('show');clearTimeout(d.st);d.st=setTimeout(()=>s.classList.remove('show'),ms);};
-  function clear(d){d.chasing=false;d.el.classList.remove('walk','run','eat','bark','sleep','sit','held','plop');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
+  function clear(d){d.el.classList.remove('walk','run','eat','bark','sleep','sit','held','plop');d.el.querySelectorAll('.zz').forEach(n=>n.remove());}
   function moveTo(d,x,y,speed){ // speed px/s
     x=Math.max(4,Math.min(W()-DW()-4,x)); y=Math.max(4,Math.min(DH()-DW()-4,y));
     const dist=Math.hypot(x-d.x,y-d.y); d.f=x>=d.x?1:-1;
@@ -279,7 +275,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   }
   function tap(d){
     const t=Date.now();
-    if(t-d.lastTap<350){ d.lastTap=0; if(d.sitBefore){ d.stay=false; act(d,'walk',true); } else sit(d,true); } // double tap: sit and stay (again: stand up)
+    if(t-d.lastTap<350){ d.lastTap=0; if(d.sitBefore) act(d); else sit(d); } // double tap: sit (on a sitting dog: stand up)
     else { d.sitBefore=d.el.classList.contains('sit'); d.lastTap=t; act(d,'bark',true); }                                                       // single tap: bark
   }
   function attach(d){
@@ -301,7 +297,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       if(d.drag) dragPos(d);
     });
     const end=(e)=>{
-      if(!d.down) return; d.down=false; clearTimeout(d.hold); window.__ejT=Date.now();
+      if(!d.down) return; d.down=false; clearTimeout(d.hold);
       if(d.drag) putDown(d); else if(e.type==='pointerup') tap(d);
     };
     el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
@@ -317,7 +313,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   /* treat button */
   const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<svg aria-hidden="true" width="22" height="12" viewBox="0 0 44 24"><path d="M10 4a5 5 0 0 1 9 2h6a5 5 0 1 1 9 4 5 5 0 1 1-9 4h-6a5 5 0 1 1-9-4 5 5 0 0 1 0-6z" fill="#fff" stroke="#14141A" stroke-width="2.5"/></svg> GIVE TREATS';
   document.body.appendChild(btn);
-  const hint=document.createElement('div');hint.className='dog-hint';hint.textContent='DOGS: DRAG TO MOVE // TAP = BARK // DOUBLE TAP = SIT / STAND';document.body.appendChild(hint);
+  const hint=document.createElement('div');hint.className='dog-hint';hint.textContent='DOGS: DRAG TO MOVE // TAP = BARK // DOUBLE TAP = SIT';document.body.appendChild(hint);
   setTimeout(()=>{hint.style.opacity=0;},9000);setTimeout(()=>hint.remove(),9700);
   let bowl=null;
   btn.onclick=()=>{
@@ -341,41 +337,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
           d.t=setTimeout(()=>act(d),1500);},3000);},dur);
     });
   };
-  function feedAt(bx,by,done){ // free dogs run to (bx,by), eat, then go back to wandering
-    const crew=dogs.filter(k=>!k.drag&&!k.treat);
-    if(!crew.length) return false;
-    let left=crew.length;
-    crew.forEach((d,i)=>{
-      clearTimeout(d.t);clear(d);d.busy=true;d.treat=true;d.stay=false;
-      say(d,night()?'!! noodles?!':'NOODLES!!',900);
-      d.el.classList.add('run');
-      const tx=bx-DW()/2+(i-1)*(DW()*.75), ty=by-DW()*.75;
-      const dur=moveTo(d,tx,ty,420);
-      setTimeout(()=>{clear(d);d.f=bx>d.x+DW()/2?1:-1;d.el.querySelector('.body').style.setProperty('--f',d.f);d.el.classList.add('eat');say(d,'yum!',2400);d.ate=Date.now();
-        setTimeout(()=>{d.busy=false;d.treat=false;say(d,'♥ thank u',1500);d.t=setTimeout(()=>act(d),1500);if(--left===0&&done) done();},2500);},dur);
-    });
-    return true;
-  }
-  function chase(px,py,onArrive){ // nearest free dog runs to a ball at page coords (px,py); calls onArrive(dog) when it gets there
-    const free=dogs.filter(k=>!k.drag&&!k.treat&&!k.stay&&!k.chasing&&!k.el.classList.contains('sleep'));
-    if(!free.length) return false;
-    free.sort((a,b)=>Math.hypot(a.x-px,a.y-py)-Math.hypot(b.x-px,b.y-py));
-    const d=free[0];
-    clearTimeout(d.t); clear(d); d.chasing=true; d.busy=true;
-    say(d,pick(['ball!','mine!','on it!']),900);
-    d.el.classList.add('run');
-    const dur=moveTo(d,px-DW()/2,py-DW()*.8,380);
-    d.t=setTimeout(()=>{
-      if(!d.chasing) return;
-      clear(d); d.f=px>d.x+DW()/2?1:-1; d.el.querySelector('.body').style.setProperty('--f',d.f);
-      d.el.classList.add('bark'); say(d,pick(['got it!','nice.','heh.','mine now.']),1300);
-      if(onArrive) onArrive(d);
-      d.t=setTimeout(()=>{d.busy=false;act(d);},1000);
-    },dur);
-    return true;
-  }
   window.__ej=Object.assign(window.__ej||{},{
-    feedAt, chase,
     treat:()=>{if(btn.disabled||bowl) return false; btn.onclick(); return true;},
     sitAll:()=>dogs.forEach(d=>{if(!d.drag&&!d.treat) sit(d,true);}),
     standAll:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'chill',true); say(d,pick(['up!','standing.','ok, free?']),1500);}),
@@ -399,149 +361,34 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     noodles, confetti:()=>rain(['■','●','▲','★','◆'],70)
   });
 
-  /* roaming noodle bowl: drifts around the whole site. Tap it to chat, drag it and drop it: the dogs run over and eat it */
+  /* roaming noodle bowl: drifts around the whole site, tap it */
   const yard=document.getElementById('yard'); if(!yard) return;
   const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const nb=document.createElement('button');
-  nb.className='nbowl'; nb.setAttribute('aria-label','Noodle bowl. Tap it, or drag it to the dogs.');
-  nb.innerHTML='<span class="nsay"></span><span class="bw"><svg viewBox="0 0 64 60" aria-hidden="true">'+
-    '<g class="st"><path d="M22 15c-4-4 4-6 0-10M32 15c-4-4 4-6 0-10M42 15c-4-4 4-6 0-10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></g>'+
-    '<g class="nd" transform="translate(0 -5)"><ellipse cx="32" cy="27" rx="25" ry="7" fill="#FFE9A8" stroke="#14141A" stroke-width="2.5"/>'+
-    '<path d="M12 26c5-5 8 3 13-2s8 3 13-2 8 3 14-1M16 31c5-3 8 2 12-1s8 2 12-1 7 1 10-1" fill="none" stroke="#E8A33D" stroke-width="2.2" stroke-linecap="round"/>'+
-    '<circle cx="40" cy="24" r="5" fill="#fff" stroke="#14141A" stroke-width="2"/><circle cx="40" cy="24" r="2.2" fill="#FFB020"/>'+
-    '<circle cx="22" cy="23" r="1.8" fill="#35C46B"/><circle cx="27" cy="27" r="1.8" fill="#35C46B"/><circle cx="48" cy="29" r="1.8" fill="#35C46B"/></g>'+
-    '<path d="M5 28H59Q58 52 32 55Q6 52 5 28Z" style="fill:var(--pop)" stroke="#14141A" stroke-width="3" stroke-linejoin="round"/>'+
-    '<path d="M13 37H51" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>'+
-    '<path d="M47 5L34 28M53 8L39 28" stroke="#14141A" stroke-width="2.6" stroke-linecap="round"/></svg></span>';
+  nb.className='nbowl'; nb.setAttribute('aria-label','Noodle bowl. Tap it.');
+  nb.innerHTML='<span class="st">~ ~ ~</span><span class="bw">🍜</span><span class="nsay"></span>';
   yard.appendChild(nb);
-  const BW=()=>innerWidth<600?52:64;
-  let x=innerWidth*.6, y=scrollY+innerHeight*.5, mt=0, n=0, held=false, down=false, feeding=false, ox=0, oy=0, sx=0, sy=0;
+  let x=innerWidth*.6, y=scrollY+innerHeight*.5, mt=0, n=0;
   const place=(dur)=>{nb.style.transitionDuration=dur+'ms';nb.style.transform='translate('+x+'px,'+y+'px)';};
-  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-  const ej=()=>window.__ej||{};
-  function chat(txt){const s=nb.querySelector('.nsay');s.textContent=txt;s.classList.add('show');clearTimeout(nb.st);nb.st=setTimeout(()=>s.classList.remove('show'),1700);}
   function drift(){
-    clearTimeout(mt); if(held||feeding) return;
-    const near=Math.random()<.5, Wd=yard.clientWidth||innerWidth, Hd=yard.clientHeight||innerHeight;
-    const tx=20+Math.random()*(Wd-BW()-40), ty=near?scrollY+60+Math.random()*Math.max(60,innerHeight-BW()-120):Math.random()*(Hd-BW()-20);
+    clearTimeout(mt);
+    const near=Math.random()<.5, H=yard.clientHeight||innerHeight;
+    const tx=20+Math.random()*(innerWidth-90), ty=near?scrollY+60+Math.random()*(innerHeight-160):Math.random()*(H-80);
     const d=Math.hypot(tx-x,ty-y); x=tx; y=ty;
     const dur=RM?0:Math.max(2000,d/40*1000); place(dur);
     mt=setTimeout(drift,dur+2000+Math.random()*3000);
   }
   place(0); setTimeout(drift,1500);
   const lines=['slurp.','fresh noodles.','extra spicy.','chef: eeshika.','recipe: classified.','still hot.'];
-  function tap(){
-    n++; chat(n%5===0?'okay, noodle rain.':lines[Math.floor(Math.random()*lines.length)]);
-    nb.classList.remove('hit'); void nb.offsetWidth; nb.classList.add('hit');
+  nb.addEventListener('click',()=>{
+    n++; const s=nb.querySelector('.nsay');
+    s.textContent=n%5===0?'okay, noodle rain.':lines[Math.floor(Math.random()*lines.length)];
+    nb.classList.remove('hit'); void nb.offsetWidth; nb.classList.add('hit'); s.classList.add('show');
+    clearTimeout(nb.st); nb.st=setTimeout(()=>s.classList.remove('show'),1600);
     if(n%5===0) noodles();
-    (ej().dogs||[]).forEach(d=>{const s2=d.el.querySelector('.say');if(s2&&!d.drag&&!d.el.classList.contains('sleep')&&Math.hypot(d.x-x,d.y-y)<300){s2.textContent='noodles?!';s2.classList.add('show');setTimeout(()=>s2.classList.remove('show'),1200);}});
+    const ds=(window.__ej&&window.__ej.dogs)||[];
+    ds.forEach(d=>{const s2=d.el.querySelector('.say');if(s2&&!d.drag&&!d.el.classList.contains('sleep')&&Math.hypot(d.x-x,d.y-y)<300){s2.textContent='noodles?!';s2.classList.add('show');setTimeout(()=>s2.classList.remove('show'),1200);}});
     drift();
-  }
-  function drop(){ // let go: the dogs run to the bowl, eat it, and it refills
-    const fed=ej().feedAt&&ej().feedAt(x+BW()/2,y+BW()/2,()=>{feeding=false;nb.classList.remove('empty');chat('refilled.');mt=setTimeout(drift,1500);});
-    if(fed){feeding=true;nb.classList.add('empty');chat('go on then.');} else mt=setTimeout(drift,2500);
-  }
-  nb.addEventListener('pointerdown',(e)=>{
-    if(feeding||e.button>0) return; e.preventDefault();
-    const r=nb.getBoundingClientRect(); x=r.left+scrollX; y=r.top+scrollY; clearTimeout(mt); place(0); // freeze where it is
-    ox=e.clientX+scrollX-x; oy=e.clientY+scrollY-y; sx=e.clientX; sy=e.clientY; down=true;
-    try{nb.setPointerCapture(e.pointerId);}catch(_){}
-  });
-  nb.addEventListener('pointermove',(e)=>{
-    if(!down) return;
-    if(!held&&Math.hypot(e.clientX-sx,e.clientY-sy)>6){held=true;nb.classList.add('held');chat('wheee');if(navigator.vibrate) try{navigator.vibrate(10);}catch(_){}}
-    if(held){x=clamp(e.clientX+scrollX-ox,4,(yard.clientWidth||innerWidth)-BW()-4);y=clamp(e.clientY+scrollY-oy,4,(yard.clientHeight||innerHeight)-BW()-4);place(0);}
-  });
-  const up=(e)=>{
-    if(!down) return; down=false; window.__ejT=Date.now();
-    if(held){held=false;nb.classList.remove('held');drop();}
-    else if(e.type==='pointerup') tap();
-  };
-  nb.addEventListener('pointerup',up); nb.addEventListener('pointercancel',up);
-  nb.addEventListener('click',(e)=>{if(e.detail===0) tap();}); // keyboard (Enter / Space)
-})();
-
-/* ---------- kick a ball anywhere: click or tap empty space ---------- */
-(function(){
-  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const layer=document.createElement('div'); layer.id='klayer'; document.body.appendChild(layer);
-  const BALL='<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#14141A" stroke-width="3"/><polygon points="20,11 29,17 26,28 14,28 11,17" fill="#14141A"/><path d="M20 11V4.5M29 17L35 14.5M26 28L30.5 33.5M14 28L9.5 33.5M11 17L5 14.5" stroke="#14141A" stroke-width="2.4" stroke-linecap="round"/></svg>';
-  const balls=[]; let raf=0, last=0;
-  const R=()=>innerWidth<600?14:18, G=1900;
-  const floor=()=>innerHeight-R()-4;
-  function kill(b){ if(b.dead) return; b.dead=true; b.el.remove(); b.sh.remove(); const i=balls.indexOf(b); if(i>-1) balls.splice(i,1); }
-  function wake(){ if(!raf&&!document.hidden&&balls.length){last=0;raf=requestAnimationFrame(step);} }
-  document.addEventListener('visibilitychange',wake);
-  function spawn(x,y){
-    while(balls.length>=2) kill(balls[0]);
-    const r=R(), el=document.createElement('div'), sh=document.createElement('i');
-    el.className='kball'; el.innerHTML=BALL; sh.className='ksh';
-    el.style.width=el.style.height=(2*r)+'px'; sh.style.width=(2*r)+'px'; sh.style.height=(r*.5)+'px';
-    layer.appendChild(sh); layer.appendChild(el);
-    const b={el,sh,x:Math.max(r,Math.min(innerWidth-r,x)),y:Math.min(floor(),Math.max(r,y)),vx:(Math.random()-.5)*720,vy:-(520+Math.random()*440),rot:0,sq:0,age:0,rest:0,hold:false,chased:false,dead:false};
-    balls.push(b);
-    if(RM){ // no physics: show it briefly where you clicked
-      place(b,1,1); b.sh.style.opacity=0;
-      setTimeout(()=>{el.style.opacity=0;},900); setTimeout(()=>kill(b),1400); return b;
-    }
-    place(b,1,1); wake(); return b;
-  }
-  function place(b,sx,sy){
-    const r=R(), fy=floor()+r, h=Math.max(0,Math.min(1,(floor()-b.y)/380));
-    b.el.style.transform='translate('+(b.x-r)+'px,'+(b.y-r)+'px) rotate('+b.rot+'deg) scale('+sx+','+sy+')';
-    b.sh.style.transform='translate('+(b.x-r)+'px,'+(fy-r*.2)+'px) scale('+(1-h*.55)+',1)';
-    b.sh.style.opacity=(.38*(1-h*.6)).toFixed(2);
-  }
-  function step(t){
-    raf=0; if(document.hidden||!balls.length){last=0;return;}
-    const dt=Math.min(.033,((t-(last||t))/1000)||.016); last=t;
-    const r=R(), fl=floor(), W=innerWidth;
-    balls.slice().forEach(b=>{
-      b.age+=dt; b.vy+=G*dt; b.x+=b.vx*dt; b.y+=b.vy*dt;
-      if(b.x<r){b.x=r;b.vx=Math.abs(b.vx)*.65;} else if(b.x>W-r){b.x=W-r;b.vx=-Math.abs(b.vx)*.65;}
-      if(b.y<r){b.y=r;b.vy=Math.abs(b.vy)*.4;}
-      let onFloor=false;
-      if(b.y>=fl){ b.y=fl;
-        if(b.vy>160){b.vy=-b.vy*.58;b.vx*=.9;b.sq=1;} else {b.vy=0;onFloor=true;}
-      }
-      if(onFloor){const f=380*dt; b.vx=Math.abs(b.vx)<=f?0:b.vx-Math.sign(b.vx)*f;}
-      b.rot+=b.vx*dt*(180/(Math.PI*r));
-      b.sq*=Math.exp(-dt*14);
-      b.rest=(onFloor&&b.vx===0)?b.rest+dt:0;
-      if(b.rest>.25&&!b.chased){b.chased=true; chaseBall(b);}   // once it has stopped, a dog goes for it
-      if(b.age>14) b.hold=false;
-      if(b.age>6&&!b.hold&&!b.fade){b.fade=true;b.el.style.opacity=0;b.sh.style.opacity=0;setTimeout(()=>kill(b),550);}
-      place(b,1+.3*b.sq,1-.3*b.sq);
-    });
-    if(balls.length) raf=requestAnimationFrame(step); else last=0;
-  }
-  function chaseBall(b){
-    const ej=window.__ej; if(!ej||!ej.chase||b.dead) return;
-    b.hold=true;
-    const ok=ej.chase(b.x+scrollX,b.y+scrollY,(d)=>{
-      b.hold=false; if(b.dead) return;
-      const rc=d.el.getBoundingClientRect();           // head bump: the ball jumps from the dog's head
-      if(rc.bottom>0&&rc.top<innerHeight&&rc.right>0&&rc.left<innerWidth){b.x=rc.left+rc.width/2;b.y=Math.max(R(),rc.top+rc.height*.2);}
-      b.vx=(Math.random()<.5?-1:1)*(260+Math.random()*240); b.vy=-(640+Math.random()*280); b.rest=0; b.age=Math.min(b.age,3.5); b.fade=false;
-      b.el.style.opacity=1; wake();
-    });
-    if(!ok) b.hold=false;
-  }
-  function kick(x,y){
-    if(document.getElementById('site')&&document.getElementById('site').hidden) return;
-    if(typeof x!=='number'){x=innerWidth*(.25+Math.random()*.5);y=innerHeight*.6;}
-    spawn(x,y);
-    if(navigator.vibrate){try{navigator.vibrate(10);}catch(_){}}
-  }
-  window.__ej=Object.assign(window.__ej||{},{kick});
-  // only empty space kicks: never links, buttons, inputs, cards, stamps, FAQ bars, the game, the terminal, dogs or the bowl
-  const IGN='a,button,input,textarea,select,label,summary,[role=button],[contenteditable],.card,.stamp,.bar,.faq,.zone,.scene,.arena,.term,.dog,.nbowl,.map,.frame,header,nav,.treat,.dog-hint,#bday,.tchip,#klayer';
-  document.addEventListener('click',(e)=>{
-    if(e.button||e.defaultPrevented||e.detail===0) return;
-    if(Date.now()-(window.__ejT||0)<450) return;
-    if(window.getSelection&&String(window.getSelection())) return;
-    const t=e.target; if(!(t instanceof Element)||t.closest(IGN)) return;
-    kick(e.clientX,e.clientY);
   });
 })();
 
@@ -578,7 +425,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       if(!p) return print('usage: fly &lt;CODE&gt;. codes: '+pp.map(x=>x[0]).join(' '));
       const m=$('#map'); if(m) m.scrollIntoView({behavior:RM?'auto':'smooth',block:'center'});
       setTimeout(()=>ej('fly',c),RM?0:500); print('route set: → '+c+' ('+esc(p[1])+'). wheels up.');},
-    kick:()=>{ej('kick');print('kick. the dogs noticed.');},
+    kick:()=>print('coming soon.'),
     noodles:()=>{ej('noodles');print('noodle rain. you asked for this.');},
     confetti:()=>{ej('confetti');print('confetti.');}
   };
@@ -598,7 +445,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     else if(e.key==='Tab'){const v=inp.value.toLowerCase();if(v){const m=names.filter(n=>n.startsWith(v));if(m.length===1)inp.value=m[0]+(m[0]==='fly'?' ':'');else if(m.length>1)print(m.join('  '));}e.preventDefault();}
   });
   term.addEventListener('click',(e)=>{if(!e.target.closest('.tchip')&&!window.getSelection().toString()) inp.focus({preventScroll:true});});
-  $('#tchips').innerHTML=['help','dogs','cook','travel','keeper','stem','treat','sit','stand','night'].map(c=>'<button class="tchip" data-c="'+c+'">'+c+'</button>').join('');
+  $('#tchips').innerHTML=['help','dogs','cook','travel','keeper','stem','treat','night'].map(c=>'<button class="tchip" data-c="'+c+'">'+c+'</button>').join('');
   $('#tchips').onclick=(e)=>{const b=e.target.closest('.tchip');if(!b) return;let c=b.dataset.c;
     if(c==='night'&&root.dataset.theme==='dark') c='day'; run(c);};
 
