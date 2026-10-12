@@ -308,3 +308,11 @@ h1{overflow-wrap:normal;word-break:keep-all}
 .kball{position:absolute;left:0;top:0;will-change:transform,opacity;transition:opacity .5s}
 .kball svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 2px 0 rgba(20,20,26,.2))}
 .ksh{position:absolute;left:0;top:0;border-radius:50%;background:#14141A;transition:opacity .5s;will-change:transform}
+.nbowl{position:absolute;left:0;top:0;z-index:2;pointer-events:auto;background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;line-height:1;font-size:34px;transition-property:transform;transition-timing-function:ease-in-out;touch-action:manipulation}
+.nbowl .st{font:700 13px 'Space Mono',monospace;color:var(--ink);animation:steam 1.6s ease-in-out infinite}
+.nbowl .bw{display:block;filter:drop-shadow(2px 2px 0 var(--line))}
+.nbowl.hit .bw{animation:slurp .5s ease}
+@keyframes slurp{30%{transform:scale(1.3,.8) rotate(-8deg)}60%{transform:scale(.9,1.15) rotate(6deg)}}
+.nsay{position:absolute;bottom:100%;white-space:nowrap;background:var(--card);color:var(--ink);border:2px solid var(--line);font:700 12px 'Space Mono',monospace;padding:3px 7px;opacity:0;transition:opacity .2s}
+.nsay.show{opacity:1}
+@media (max-width:600px){.nbowl{font-size:28px}}
