@@ -106,8 +106,6 @@ h1 em{color:var(--pop)}
 .tchip:active{background:#CCFF00;color:#050505}
 @media (max-width:760px),(pointer:coarse){.tchips{display:flex}}
 @media (max-width:420px){.tchrome .tlab{display:none}.tps{font-size:12px}.tout{padding:10px 12px 4px}.tline{padding:6px 12px 12px}}
-.rainp{position:fixed;top:-40px;z-index:9999;pointer-events:none;font-size:22px;animation:rainfall linear forwards}
-@keyframes rainfall{to{transform:translateY(110vh) rotate(540deg)}}
 @media (prefers-reduced-motion:reduce){.tbowl .stm,.nbowl .st,.nbowl .bw{animation:none}}
 .faq{padding:20px;max-width:860px;margin-bottom:16px}
 .faq .q{font-size:19px;line-height:1.25}
@@ -308,3 +306,120 @@ h1{overflow-wrap:normal;word-break:keep-all}
 .kball{position:absolute;left:0;top:0;will-change:transform,opacity;transition:opacity .5s}
 .kball svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 2px 0 rgba(20,20,26,.2))}
 .ksh{position:absolute;left:0;top:0;border-radius:50%;background:#14141A;transition:opacity .5s;will-change:transform}
+
+/* ================= night sky, header menu, phone layout, polish ================= */
+
+/* ---------- night sky (dark theme only) ---------- */
+#sky{position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;overflow:hidden;background:var(--dot) 0 0/var(--ds) var(--ds),radial-gradient(120% 75% at 86% 0,#1B2250 0,rgba(27,34,80,0) 62%),linear-gradient(#05060F 0,#090A1B 52%,#0A0A0F 100%)}
+[data-theme=dark] #sky{display:block}
+#skyc{position:absolute;inset:0;width:100%;height:100%}
+#sky .moon{position:absolute;top:calc(max(15vh,120px) + env(safe-area-inset-top));right:calc(clamp(12px,2.4vw,44px) + env(safe-area-inset-right));width:clamp(64px,9vw,130px);aspect-ratio:1;will-change:transform;filter:drop-shadow(0 0 12px rgba(255,240,200,.5)) drop-shadow(0 0 42px rgba(255,232,160,.25))}
+#sky .moon::before{content:"";position:absolute;inset:-70%;background:radial-gradient(circle,rgba(255,236,180,.18) 0,rgba(255,236,180,0) 62%)}
+#sky .moon svg{position:relative;display:block;width:100%;height:100%}
+#sky .shoot{position:absolute;left:0;top:0;width:140px;height:2px;border-radius:2px;transform-origin:100% 50%;background:linear-gradient(90deg,rgba(255,255,255,0),#fff);box-shadow:0 0 6px 1px rgba(200,225,255,.6);opacity:0;will-change:transform,opacity}
+[data-theme=dark] header{background:rgba(10,10,15,.76);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* circular theme wipe (View Transitions API); the clip-path itself is animated from script */
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-old(root){z-index:1}
+::view-transition-new(root){z-index:2}
+
+/* pause every CSS animation while the tab is hidden */
+.ej-paused *,.ej-paused *::before,.ej-paused *::after{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* ---------- header: hamburger at 700px and below ---------- */
+header{flex-wrap:nowrap;gap:12px;padding:calc(12px + env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) 12px max(24px,env(safe-area-inset-left))}
+.logo{margin-right:auto;min-width:0}
+.logo-name{font-size:20px;white-space:nowrap}
+nav{flex-wrap:nowrap}
+.hact{display:flex;align-items:center;gap:8px}
+#mode{gap:8px;min-height:48px;white-space:nowrap}
+#mode .mi{display:block;flex:none}
+#mode .mi-sun{display:none}
+[data-theme=dark] #mode .mi-moon{display:none}
+[data-theme=dark] #mode .mi-sun{display:block}
+.burger{display:none;position:relative;flex:none;width:48px;height:48px;padding:0;background:var(--a3);color:var(--on);border:3px solid var(--line);box-shadow:var(--sh)}
+.burger span{position:absolute;left:11px;right:11px;height:3px;background:currentColor;transition:transform .2s,opacity .2s}
+.burger span:nth-child(1){top:12px}.burger span:nth-child(2){top:19px}.burger span:nth-child(3){top:26px}
+.burger[aria-expanded=true] span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.burger[aria-expanded=true] span:nth-child(2){opacity:0}
+.burger[aria-expanded=true] span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.burger:active{transform:translate(3px,3px);box-shadow:none}
+@media (max-width:700px){
+  header{gap:8px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+  .burger{display:block}
+  nav{display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;flex-direction:column;align-items:stretch;gap:0;max-height:calc(100vh - 72px);max-height:calc(100dvh - 72px);overflow-y:auto;padding:4px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));background:var(--bg);border-bottom:3px solid var(--line);box-shadow:0 10px 0 rgba(20,20,26,.14)}
+  header.open nav{display:flex}
+  nav a{display:flex;align-items:center;min-height:56px;padding:0 4px;font-size:16px;border-bottom:2px solid var(--net)}
+  nav a:last-child{border-bottom:0}
+  nav a:focus-visible{outline-offset:-4px}
+}
+@media (max-width:560px){#mode{width:48px;padding:0}#mode .mt{display:none}}
+@media (max-width:420px){.logo-name{font-size:15px}}
+@media (max-width:359px){.logo-name{display:none}}
+
+/* ---------- safe areas, page padding, fixed controls ---------- */
+.sec,.hero{padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+.hero{overflow-x:clip}   /* the tilted card behind the photo pokes out by a pixel or two on phones */
+@media (max-width:420px){.sec,.hero{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}}
+/* the bottom band is kept free so the fixed treat button (and the hint) never sit on the footer */
+footer{padding:40px max(24px,env(safe-area-inset-right)) calc(76px + env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left))}
+.treat{right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}
+.dog-hint{left:calc(16px + env(safe-area-inset-left));bottom:calc(16px + env(safe-area-inset-bottom));max-width:calc(100vw - 210px - env(safe-area-inset-left) - env(safe-area-inset-right))}
+@media (max-width:600px){
+  /* on phones the hint stacks above the treat button instead of sitting beside it */
+  .dog-hint{right:calc(16px + env(safe-area-inset-right));max-width:none;bottom:calc(16px + 40px + 10px + env(safe-area-inset-bottom))}
+  html.hint-on footer{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+}
+
+/* ---------- passport map: wider than the screen on phones, swipe sideways ---------- */
+.mapscroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior-x:contain}
+.mapscroll::-webkit-scrollbar{display:none}
+.mapin{position:relative}
+.mapin .sn{display:none}
+.mapscroll:focus-visible{outline-offset:-4px}
+@media (max-width:599px){
+  .mapscroll{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .mapscroll.following{scroll-snap-type:none}
+  .mapin{width:clamp(760px,200vw,1000px)}
+  .mapin .sn{display:block;position:absolute;top:0;left:0;width:34%;height:1px;scroll-snap-align:start;pointer-events:none}
+  .mapin .sn.s2{left:33%}.mapin .sn.s3{left:66%}
+  .pin text{font-size:19px}
+  .pin circle{r:8}.pin.on circle{r:12}
+  .stamps{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ---------- game on phones: taller pitch, wider goal, bigger tap zones ---------- */
+@media (max-width:599px){
+  .arena{padding:12px}
+  .scene{aspect-ratio:4/3;min-height:0}
+  .goal{left:3%;right:3%;top:5%;height:74%}
+  .zones{gap:3px;padding:3px}
+  .zone{min-height:44px}
+  .keeper{width:24%}
+}
+
+/* ---------- scroll reveal + card tilt ---------- */
+@media (prefers-reduced-motion:no-preference){
+  .rv{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1);transition-delay:var(--rd,0ms)}
+  .rv.in{opacity:1;transform:none}
+}
+@media (hover:hover) and (pointer:fine){
+  .card.lift:hover,.stamp.lift:hover{transform:translate(-3px,-3px) perspective(800px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+}
+
+/* ---------- consistent focus rings ---------- */
+.tline:focus-within{outline:3px solid var(--pop);outline-offset:-3px}
+.zone:focus-visible{outline-offset:-5px}
+.tchip:focus-visible,.burger:focus-visible{outline-offset:2px}
+
+/* ---------- little surprises ---------- */
+.dog.jump .body{animation:djump .55s cubic-bezier(.2,.7,.3,1)}
+@keyframes djump{0%{transform:scaleX(var(--f,1))}35%{transform:scaleX(var(--f,1)) translateY(-36px) rotate(-8deg)}70%{transform:scaleX(var(--f,1)) translateY(0) scale(1.12,.84)}100%{transform:scaleX(var(--f,1))}}
+@keyframes djumps{0%,100%{transform:scaleX(var(--f,1))}40%{transform:scaleX(var(--f,1)) translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.dog.jump .body{animation-name:djumps}}
+#ej-toast{position:fixed;left:50%;top:12px;z-index:9999;transform:translate(-50%,-8px);max-width:min(92vw,420px);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:center;padding:10px 14px;background:var(--bar);color:var(--barfg);border:3px solid var(--line);box-shadow:var(--sh);font:700 13px/1.4 'Space Mono',monospace;text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+#ej-toast.show{opacity:1;transform:translate(-50%,0)}
+#ej-toast.act{pointer-events:auto}
+#ej-toast button{min-height:36px;padding:0 12px;background:var(--a1);color:var(--on);border:2px solid var(--line);font:700 13px 'Space Mono',monospace}
