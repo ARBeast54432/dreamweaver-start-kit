@@ -1,32 +1,90 @@
 const $ = (s) => document.querySelector(s);
 const root = document.documentElement;
 
-/* ---------- theme: by local time on a first visit, then the visitor's saved choice ---------- */
-function applyTheme(t) {
-  root.dataset.theme = t;
-  $('#mode').textContent = t === 'dark' ? 'DAY MODE' : 'NIGHT MODE';
-}
-// user-chosen theme: saved, with a circular wipe from the toggle (fade fallback)
-function setTheme(t) {
-  try { localStorage.setItem('theme', t); } catch (e) {}
-  if (root.dataset.theme === t) return;
-  const rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!document.startViewTransition || rm) {
-    if (!rm) { root.classList.add('tfade'); setTimeout(() => root.classList.remove('tfade'), 450); }
-    applyTheme(t); return;
+/* ---------- one shared rAF loop: every effect below hangs off this ---------- */
+const sched = (() => {
+  const tasks = new Set(); let raf = 0, last = 0;
+  function loop(t) {
+    raf = 0;
+    if (document.hidden) { last = 0; return; }              // hidden tab: nothing runs
+    const dt = Math.min(.05, ((t - (last || t)) / 1000) || .016); last = t;
+    tasks.forEach((fn) => {
+      let keep = true;
+      try { keep = fn(t, dt) !== false; } catch (e) { console.error(e); keep = false; }
+      if (!keep) tasks.delete(fn);
+    });
+    if (tasks.size) raf = requestAnimationFrame(loop); else last = 0;
   }
-  const r = $('#mode').getBoundingClientRect();
-  const x = r.width ? r.left + r.width / 2 : innerWidth - 40, y = r.height ? r.top + r.height / 2 : 30;
-  const end = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-  try {
-    const vt = document.startViewTransition(() => applyTheme(t));
-    vt.ready.then(() => root.animate({ clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + end + 'px at ' + x + 'px ' + y + 'px)'] }, { duration: 550, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
-  } catch (e) { applyTheme(t); }
+  const kick = () => { if (!raf && tasks.size && !document.hidden) { last = 0; raf = requestAnimationFrame(loop); } };
+  document.addEventListener('visibilitychange', () => { root.classList.toggle('ej-paused', document.hidden); kick(); });
+  // add(fn): fn(t, dt) runs every frame until it returns false. add() returns a function that removes it.
+  return { add(fn) { tasks.add(fn); kick(); return () => tasks.delete(fn); } };
+})();
+const rmq = matchMedia('(prefers-reduced-motion: reduce)');
+const buzz = (ms) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };   // light haptics, ignored where unsupported
+
+/* ---------- one small toast ---------- */
+const toast = (() => {
+  let el = null, tm = 0;
+  function hide() { if (el) el.classList.remove('show', 'act'); }
+  return (text, o = {}) => {
+    if (!el) {
+      el = document.createElement('div'); el.id = 'ej-toast';
+      el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+    }
+    clearTimeout(tm); el.textContent = '';
+    const s = document.createElement('span'); s.textContent = text; el.appendChild(s);
+    const bs = o.buttons || [];
+    bs.forEach((b) => {
+      const k = document.createElement('button'); k.type = 'button'; k.textContent = b.label;
+      k.onclick = () => { hide(); if (b.onClick) b.onClick(); };
+      el.appendChild(k);
+    });
+    el.classList.toggle('act', bs.length > 0);
+    const hd = document.querySelector('header');
+    el.style.top = (Math.max(0, hd ? hd.getBoundingClientRect().bottom : 0) + 12) + 'px';
+    el.classList.add('show');
+    tm = setTimeout(hide, o.ms || 2200);
+  };
+})();
+
+/* ---------- theme ---------- */
+const THEME_KEY = 'theme';
+const savedTheme = () => { try { const v = localStorage.getItem(THEME_KEY); return v === 'dark' || v === 'light' ? v : null; } catch (e) { return null; } };
+const autoTheme = () => { const h = new Date().getHours(); return h >= 19 || h < 6 ? 'dark' : 'light'; };   // first visit: dark from 19:00 to 06:00
+function paintTheme(t) {
+  root.dataset.theme = t;
+  const m = $('#mode'); if (!m) return;
+  m.setAttribute('aria-label', t === 'dark' ? 'Switch to day mode' : 'Switch to night mode');
+  const mt = m.querySelector('.mt'); if (mt) mt.textContent = t === 'dark' ? 'DAY MODE' : 'NIGHT MODE';
 }
-let saved = null;
-try { saved = localStorage.getItem('theme'); } catch (e) {}
-if (saved === 'dark' || saved === 'light') applyTheme(saved);
-else { const h = new Date().getHours(); applyTheme(h >= 19 || h < 6 ? 'dark' : 'light'); }
+// Only the visitor calls this (toggle button or the terminal's night/day), so this is the only place a choice is saved.
+function setTheme(t) {
+  if (t !== 'dark' && t !== 'light') return;
+  try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+  if (root.dataset.theme === t) return;
+  if (rmq.matches) { paintTheme(t); return; }
+  const m = $('#mode'), r = m ? m.getBoundingClientRect() : null;
+  const x = r && r.width ? r.left + r.width / 2 : innerWidth - 40, y = r && r.height ? r.top + r.height / 2 : 40;
+  if (document.startViewTransition) {                     // circular wipe growing out of the toggle button
+    const vt = document.startViewTransition(() => paintTheme(t));
+    vt.ready.then(() => {
+      const rad = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+      root.animate({ clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + rad + 'px at ' + x + 'px ' + y + 'px)'] },
+        { duration: 650, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' });
+    }).catch(() => {});
+    return;
+  }
+  // fallback: plain fade, out of the old background colour
+  const veil = document.createElement('div');
+  veil.style.cssText = 'position:fixed;inset:0;z-index:9998;pointer-events:none;opacity:1;transition:opacity .4s ease;background:' + getComputedStyle(document.body).backgroundColor;
+  document.body.appendChild(veil);
+  paintTheme(t);
+  void veil.offsetWidth; veil.style.opacity = 0;
+  setTimeout(() => veil.remove(), 520);
+}
+paintTheme(savedTheme() || autoTheme());                  // never saved here: no saved choice means "follow the clock"
 $('#mode').onclick = () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
 
 /* ---------- date logic: birthday page + countdown ---------- */
@@ -108,7 +166,7 @@ $('#zones').onclick = (e) => {
   last = i;
   speech.textContent = Q[i]; speech.style.opacity = 1;
   saves++; $('#saves').textContent = saves; $('#status').textContent = 'SAVED.';
-  if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+  buzz(14);
   timer = setTimeout(rest, 1400);
 };
 $('#reset').onclick = () => { clearTimeout(timer); saves = 0; $('#saves').textContent = 0; rest(); $('#status').textContent = 'PICK A SPOT.'; };
@@ -152,27 +210,49 @@ $('#faqs').onclick = (e) => {
   pp.forEach(p=>{const [x,y]=P(p[0]);const gg=document.createElementNS(NS,'g');gg.setAttribute('class','pin');gg.dataset.c=p[0];
     gg.innerHTML='<circle cx="'+x+'" cy="'+y+'" r="6"/><text x="'+(x+10)+'" y="'+(y-8)+'">'+p[0]+'</text>';pins.appendChild(gg);});
   const plane=document.getElementById('plane'), route=document.getElementById('mroute'), tag=document.getElementById('mtag');
-  let cur='AE', raf=0; const seen=new Set(['AE']);
+  let cur='AE', stopFly=null; const seen=new Set(['AE']);
   const place=(x,y,a)=>plane.setAttribute('transform','translate('+x+' '+y+') rotate('+a+')');
   place(...P('AE'),0);
   const mark=()=>pins.querySelectorAll('.pin').forEach(n=>{n.classList.toggle('on',n.dataset.c===cur);n.classList.toggle('seen',seen.has(n.dataset.c));});
   const lands=document.querySelectorAll('#mland .visit');
   const markLand=()=>lands.forEach(n=>{n.classList.toggle('on',n.dataset.c===cur);n.classList.toggle('seen',seen.has(n.dataset.c));});
   mark();markLand();
+  /* phones: the svg is wider than the screen inside #mapscroll, so the plane is followed by scrolling sideways */
+  const scroller=document.getElementById('mapscroll');
+  let touched=false;
+  const stopFollow=()=>{ touched=true; if(scroller) scroller.classList.remove('following'); };
+  if(scroller) ['pointerdown','touchstart','wheel'].forEach(ev=>scroller.addEventListener(ev,stopFollow,{passive:true}));
+  const overflowing=()=>!!scroller&&scroller.scrollWidth-scroller.clientWidth>2;
+  const syncScroller=()=>{ if(!scroller) return; if(overflowing()) scroller.setAttribute('tabindex','0'); else scroller.removeAttribute('tabindex'); };
+  const aim=(x,sw,cw)=>Math.max(0,Math.min(sw-cw,x/1000*sw-cw/2));
+  syncScroller(); window.addEventListener('resize',syncScroller);
+  if(overflowing()) scroller.scrollLeft=aim(P('AE')[0],scroller.scrollWidth,scroller.clientWidth);
   window.__fly=(to)=>{
     if(to===cur) return;
     const a=P(cur), b=P(to), dx=b[0]-a[0], dy=b[1]-a[1], d=Math.hypot(dx,dy)||1;
     const c=[(a[0]+b[0])/2 - dy*0.3*(dx<0?-1:1), (a[1]+b[1])/2 - Math.abs(dx)*0.2 - 20];
     route.setAttribute('d','M'+a+' Q'+c+' '+b);
     const from=cur; tag.textContent='> '+from+' ✈ '+to+' // IN FLIGHT';
-    cancelAnimationFrame(raf); const t0=performance.now(), dur=Math.min(2600,900+d*3);
-    const step=(t)=>{let k=Math.min(1,(t-t0)/dur); k=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    if(stopFly) stopFly();
+    const dur=rmq.matches?0:Math.min(2600,900+d*3);            // reduced motion: no flight, it just lands
+    // measure once up front, so every frame after that only writes
+    const follow=overflowing(), sw=follow?scroller.scrollWidth:0, cw=follow?scroller.clientWidth:0;
+    let sl=follow?scroller.scrollLeft:0, t0=null; touched=false;
+    if(follow) scroller.classList.add('following');
+    const step=(t,dt)=>{
+      if(t0===null) t0=t;
+      let k=dur?Math.min(1,(t-t0)/dur):1; k=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
       const q=(i)=>(1-k)*(1-k)*a[i]+2*(1-k)*k*c[i]+k*k*b[i];
       const tx=2*(1-k)*(c[0]-a[0])+2*k*(b[0]-c[0]), ty=2*(1-k)*(c[1]-a[1])+2*k*(b[1]-c[1]);
       const s=1+Math.sin(k*Math.PI)*.6;
       plane.setAttribute('transform','translate('+q(0)+' '+q(1)+') rotate('+Math.atan2(ty,tx)*180/Math.PI+') scale('+s+')');
-      if(k<1) raf=requestAnimationFrame(step); else {tag.textContent='> LANDED IN '+to+' // FROM '+from;}};
-    cur=to; seen.add(to); mark(); markLand(); raf=requestAnimationFrame(step);
+      if(follow&&!touched){ sl+=(aim(q(0),sw,cw)-sl)*(dur?1-Math.exp(-dt*8):1); scroller.scrollLeft=sl; }
+      if(k<1) return true;
+      tag.textContent='> LANDED IN '+to+' // FROM '+from; stopFly=null;
+      if(follow&&!touched) scroller.scrollLeft=aim(b[0],sw,cw);
+      return false;
+    };
+    cur=to; seen.add(to); mark(); markLand(); stopFly=sched.add(step);
   };
 })();
 $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); if(b && window.__fly) window.__fly(pp[+b.dataset.i][0]);});
@@ -236,6 +316,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   }
   const EAT_EVERY=10*60*1000;
   function act(d,forced,user){
+    // a hidden tab doesn't wander: wait until it is visible again
+    if(document.hidden&&!user){ if(!d.waitVis){ d.waitVis=true; const h=()=>{ if(document.hidden) return; document.removeEventListener('visibilitychange',h); d.waitVis=false; act(d,forced); }; document.addEventListener('visibilitychange',h); } return; }
     if(d.stay&&!user) return; // told to sit: stays put until "stand", a drag or treats
     if(user&&d.stay&&forced==='bark'){clearTimeout(d.t);say(d,'woof (still sitting)',1000);return;}
     clearTimeout(d.t); clear(d);
@@ -252,12 +334,12 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       d.el.classList.add(far?'run':'walk');
       const dur=moveTo(d,tx,ty,far?200:70);d.t=setTimeout(()=>act(d),dur);}
     else if(r==='eat'){d.ate=Date.now();d.el.classList.add('eat');say(d,'nom nom',2500);d.t=setTimeout(()=>act(d),3000);}
-    else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);if(user&&navigator.vibrate){try{navigator.vibrate(12);}catch(_){}}d.t=setTimeout(()=>act(d),1200);}
+    else if(r==='bark'){d.el.classList.add('bark');say(d,'WOOF!',900);d.t=setTimeout(()=>act(d),1200);}
     else {say(d,['chillin ☀','*yawn*','*sniff sniff*','♥'][Math.floor(Math.random()*4)],1800);d.t=setTimeout(()=>act(d),3000+Math.random()*3000);}
   }
 
   /* ---------- play with the dogs: hold + drag to pick up, let go to drop, tap = bark, double tap = sit ---------- */
-  let pcx=0,pcy=0,edge=0;
+  let pcx=0,pcy=0,edgeOff=null;
   const pick=(a)=>a[Math.floor(Math.random()*a.length)];
   function dragPos(d){ // the dog hangs from the spot you grabbed it, in page coordinates
     const nx=Math.max(4,Math.min(W()-DW()-4,pcx+window.scrollX-d.ox)), ny=Math.max(4,Math.min(DH()-DW()-4,pcy+window.scrollY-d.oy));
@@ -265,27 +347,26 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     d.el.querySelector('.body').style.setProperty('--f',d.f);
     d.x=nx; d.y=ny; d.el.style.transform='translate('+nx+'px,'+ny+'px)';
   }
-  function edgeScroll(){ // holding a dog near the top/bottom edge scrolls the page so you can carry it anywhere
-    edge=0; const d=dogs.find(k=>k.drag); if(!d) return;
+  function edgeScroll(){ // runs on the shared loop while a dog is held: near the top/bottom edge it scrolls the page so you can carry it anywhere
+    const d=dogs.find(k=>k.drag); if(!d){edgeOff=null;return false;}
     const z=90; let dy=0;
     if(pcy<z) dy=-Math.ceil((z-pcy)/5); else if(pcy>H()-z) dy=Math.ceil((pcy-(H()-z))/5);
     if(dy){window.scrollBy({top:dy,left:0,behavior:'instant'}); dragPos(d);}
-    edge=requestAnimationFrame(edgeScroll);
+    return true;
   }
   function lift(d){
     if(d.drag) return; d.drag=true; d.busy=true; d.stay=false;
     clearTimeout(d.t); clear(d); d.el.classList.add('held');
     say(d,pick(['wheee!','put me down!','careful!','I can see my house','ahh!']),1500);
-    if(!edge) edge=requestAnimationFrame(edgeScroll);
+    if(!edgeOff) edgeOff=sched.add(edgeScroll);
   }
   function putDown(d){
-    if(!d.drag) return; d.drag=false;
+    if(!d.drag) return; d.drag=false; buzz(16);
     d.el.classList.remove('held'); d.el.classList.add('plop');
-    if(navigator.vibrate){try{navigator.vibrate(18);}catch(_){}}
     say(d,pick(['new spot!','ok then.','*shakes off*','thx','nice view']),1500);
     setTimeout(()=>d.el.classList.remove('plop'),450);
     d.t=setTimeout(()=>{d.busy=false;act(d);},1200);
-    if(!dogs.some(k=>k.drag)){cancelAnimationFrame(edge);edge=0;}
+    if(!dogs.some(k=>k.drag)&&edgeOff){edgeOff();edgeOff=null;}
   }
   function freeze(d){ // stop any walk in progress exactly where the dog is right now
     const r=d.el.getBoundingClientRect(); d.x=r.left+window.scrollX; d.y=r.top+window.scrollY;
@@ -297,9 +378,10 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     if(!stay) d.t=setTimeout(()=>act(d),10000);
   }
   function tap(d){
+    if(window.__ej&&window.__ej.onDogTap) window.__ej.onDogTap();   // first tap on iOS: politely ask about shake-to-jump
     const t=Date.now();
     if(t-d.lastTap<350){ d.lastTap=0; if(d.sitBefore){ d.stay=false; act(d,'walk',true); } else sit(d,true); } // double tap: sit and stay (again: stand up)
-    else { d.sitBefore=d.el.classList.contains('sit'); d.lastTap=t; act(d,'bark',true); }                                                       // single tap: bark
+    else { d.sitBefore=d.el.classList.contains('sit'); d.lastTap=t; act(d,'bark',true); buzz(12); }                                                       // single tap: bark
   }
   function attach(d){
     const el=d.el;
@@ -337,7 +419,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   const btn=document.createElement('button');btn.className='b treat';btn.innerHTML='<svg aria-hidden="true" width="22" height="12" viewBox="0 0 44 24"><path d="M10 4a5 5 0 0 1 9 2h6a5 5 0 1 1 9 4 5 5 0 1 1-9 4h-6a5 5 0 1 1-9-4 5 5 0 0 1 0-6z" fill="#fff" stroke="#14141A" stroke-width="2.5"/></svg> GIVE TREATS';
   document.body.appendChild(btn);
   const hint=document.createElement('div');hint.className='dog-hint';hint.textContent='DOGS: DRAG TO MOVE // TAP = BARK // DOUBLE TAP = SIT / STAND';document.body.appendChild(hint);
-  setTimeout(()=>{hint.style.opacity=0;},9000);setTimeout(()=>hint.remove(),9700);
+  setTimeout(()=>{hint.style.opacity=0;},9000);root.classList.add('hint-on');setTimeout(()=>{hint.remove();root.classList.remove('hint-on');},9700);
   let bowl=null;
   btn.onclick=()=>{
     if(bowl) return;
@@ -346,7 +428,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     bowl.style.left=bx+'px';bowl.style.top=by+'px';yard.appendChild(bowl);
     const crew=dogs.filter(k=>!k.drag);
     if(!crew.length){bowl.remove();bowl=null;return;}
-    btn.disabled=true;
+    btn.disabled=true; buzz(16);
     let done=0;
     crew.forEach((d,i)=>{
       clearTimeout(d.t);clear(d);d.busy=true;d.treat=true;d.stay=false;
@@ -393,31 +475,132 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     },dur);
     return true;
   }
+  function frolic(ms){ // noodle rain: every free dog zooms around the screen for a few seconds
+    const end=Date.now()+ms;
+    dogs.forEach((d,i)=>{
+      if(d.drag||d.treat) return;
+      if(d.stay){ say(d,'*stays* (noodles tho)',1500); return; }
+      clearTimeout(d.t); clear(d); d.busy=true;
+      const go=()=>{
+        if(d.drag) return;
+        if(Date.now()>=end){ d.busy=false; d.t=setTimeout(()=>act(d),400); return; }
+        clear(d); d.el.classList.add('run');
+        const tx=Math.random()*(W()-DW()), ty=window.scrollY+40+Math.random()*Math.max(80,H()-DW()-80);
+        const dur=moveTo(d,tx,ty,520);
+        if(Math.random()<.5) say(d,pick(['NOODLES!!','zoomies!','noodle rain?!','MINE!']),700);
+        d.t=setTimeout(go,Math.min(dur,900));
+      };
+      d.t=setTimeout(go,i*120);
+    });
+  }
+  function jumpAll(){ // phone shake: everybody hops
+    dogs.forEach((d,i)=>{
+      if(d.drag) return;
+      setTimeout(()=>{
+        d.el.classList.remove('jump'); void d.el.offsetWidth; d.el.classList.add('jump');
+        say(d,pick(['whoa!','earthquake!','*boing*','!!']),1100);
+        setTimeout(()=>d.el.classList.remove('jump'),620);
+      },i*110+Math.random()*120);
+    });
+  }
   window.__ej=Object.assign(window.__ej||{},{
-    feedAt, chase,
+    feedAt, chase, frolic, jumpAll,
     treat:()=>{if(btn.disabled||bowl) return false; btn.onclick(); return true;},
     sitAll:()=>dogs.forEach(d=>{if(!d.drag&&!d.treat) sit(d,true);}),
     standAll:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'chill',true); say(d,pick(['up!','standing.','ok, free?']),1500);}),
-    zoomies:()=>dogs.forEach(d=>{if(d.drag||d.treat) return; d.stay=false; act(d,'walk',true); say(d,pick(['NOODLES?!','zoom!','!!!']),1200);}),
-    jump:()=>dogs.forEach(d=>{const v=d.el.querySelector('svg'); if(!v) return; v.classList.remove('jump'); void v.offsetWidth; v.classList.add('jump'); say(d,pick(['whoa!','earthquake?!','boing']),1000);}),
     dogs
   });
 })();
 
 /* ---------- small effects + API for the terminal ---------- */
 (function(){
-  function rain(chars,n){
-    if(matchMedia('(prefers-reduced-motion: reduce)').matches) n=Math.min(n,8);
-    for(let i=0;i<n;i++){const s=document.createElement('span');s.className='rainp';
-      s.textContent=chars[Math.floor(Math.random()*chars.length)];
-      s.style.left=Math.random()*100+'vw';s.style.animationDuration=(1.6+Math.random()*1.8)+'s';s.style.animationDelay=Math.random()*.8+'s';
-      s.style.color='var(--a'+(1+Math.floor(Math.random()*5))+')';
-      document.body.appendChild(s);setTimeout(()=>s.remove(),4500);}
+  /* ---------- confetti: canvas, in the current theme's colours ---------- */
+  let cfStop=null, cfId=0;
+  function confetti(ox,oy){
+    const cs=getComputedStyle(root), cols=['--a1','--a2','--a3','--a4','--a5','--pop'].map(v=>cs.getPropertyValue(v).trim()).filter(Boolean);
+    const W=innerWidth, H=innerHeight, dpr=Math.min(2,devicePixelRatio||1), id=++cfId, still=rmq.matches;
+    if(cfStop){cfStop();cfStop=null;}
+    let cv=document.getElementById('ej-confetti');
+    if(!cv){cv=document.createElement('canvas');cv.id='ej-confetti';cv.setAttribute('aria-hidden','true');cv.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:9998;pointer-events:none';document.body.appendChild(cv);}
+    cv.style.transition='none'; cv.style.opacity=1;
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+    const ctx=cv.getContext('2d'), x0=typeof ox==='number'?ox:W/2, y0=typeof oy==='number'?oy:H*.35;
+    const n=still?40:(W<600?90:150);
+    const ps=Array.from({length:n},()=>{
+      const a=Math.random()*Math.PI*2, sp=260+Math.random()*640;
+      return {x:still?Math.random()*W:x0, y:still?Math.random()*H*.75:y0, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-280,
+        w:6+Math.random()*7, h:4+Math.random()*6, r:Math.random()*6.28, vr:(Math.random()-.5)*14, fl:Math.random()*6.28, c:cols[Math.floor(Math.random()*cols.length)]};
+    });
+    const draw=(alpha)=>{
+      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H); ctx.globalAlpha=alpha; ctx.lineWidth=1; ctx.strokeStyle='rgba(20,20,26,.55)';
+      ps.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.scale(1,Math.cos(p.fl));ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.strokeRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});
+    };
+    if(still){ // reduced motion: a still scatter that only fades
+      draw(1);
+      void cv.offsetWidth; cv.style.transition='opacity 1.8s ease'; cv.style.opacity=0;
+      setTimeout(()=>{if(id===cfId) cv.remove();},2000);
+      return;
+    }
+    let T=0;
+    cfStop=sched.add((t,dt)=>{
+      T+=dt;
+      ps.forEach(p=>{p.vx*=1-dt*1.6;p.vy=p.vy*(1-dt*.9)+1400*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;p.fl+=dt*9;});
+      draw(T>1.5?Math.max(0,1-(T-1.5)/.5):1);
+      if(T<2) return true;
+      cfStop=null; cv.remove(); return false;
+    });
   }
-  const noodles=()=>rain(['🍜','〰','~','🥢'],36);
+
+  /* ---------- noodle rain: inline-SVG noodles and bowls for 4 seconds, and the dogs go wild ---------- */
+  const NDL=(d)=>'<svg viewBox="0 0 48 28" aria-hidden="true"><path d="'+d+'" fill="none" stroke="#14141A" stroke-width="7" stroke-linecap="round"/><path d="'+d+'" fill="none" stroke="#FFD27A" stroke-width="3.6" stroke-linecap="round"/></svg>';
+  const NOODLES=[NDL('M4 16c5-12 10 12 15 0s10 12 15 0 7 5 10-4'),NDL('M5 10c6 10 10-8 16 2s9-6 14 2 6 6 9-2')];
+  const BOWL='<svg viewBox="0 0 64 60" aria-hidden="true"><g transform="translate(0 -5)"><ellipse cx="32" cy="27" rx="25" ry="7" fill="#FFE9A8" stroke="#14141A" stroke-width="2.5"/><path d="M12 26c5-5 8 3 13-2s8 3 13-2 8 3 14-1M16 31c5-3 8 2 12-1s8 2 12-1 7 1 10-1" fill="none" stroke="#E8A33D" stroke-width="2.2" stroke-linecap="round"/><circle cx="40" cy="24" r="5" fill="#fff" stroke="#14141A" stroke-width="2"/><circle cx="40" cy="24" r="2.2" fill="#FFB020"/></g><path d="M5 28H59Q58 52 32 55Q6 52 5 28Z" style="fill:var(--pop)" stroke="#14141A" stroke-width="3" stroke-linejoin="round"/><path d="M13 37H51" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".6"/></svg>';
+  let rainOn=false;
+  function noodles(){
+    if(rainOn) return; rainOn=true;
+    const still=rmq.matches, W=innerWidth, H=innerHeight, n=still?14:(W<600?32:50);
+    const layer=document.createElement('div'); layer.setAttribute('aria-hidden','true');
+    layer.style.cssText='position:fixed;inset:0;z-index:9997;pointer-events:none;overflow:hidden';
+    document.body.appendChild(layer);
+    const ps=Array.from({length:n},()=>{
+      const bowl=Math.random()<.28, size=bowl?34+Math.random()*20:34+Math.random()*30, el=document.createElement('div');
+      el.style.cssText='position:absolute;left:0;top:0;width:'+size+'px;opacity:0;will-change:transform,opacity';
+      el.innerHTML=bowl?BOWL:NOODLES[Math.floor(Math.random()*NOODLES.length)];
+      el.firstChild.style.cssText='display:block;width:100%;height:auto;overflow:visible';
+      layer.appendChild(el);
+      return {el,size,x:Math.random()*Math.max(1,W-size),y0:still?H*(.08+Math.random()*.7):0,sw:still?0:12+Math.random()*26,sp:1.5+Math.random()*2,ph:Math.random()*6.28,r0:Math.random()*60-30,vr:still?0:(Math.random()-.5)*260,delay:Math.random()*(still?1.2:1.5),life:still?2.4:1.6+Math.random()*.9};
+    });
+    let T=0;
+    sched.add((t,dt)=>{
+      T+=dt;
+      ps.forEach(p=>{
+        const u=(T-p.delay)/p.life;
+        if(u<0||u>1){p.el.style.opacity=0;return;}
+        const y=still?p.y0:-p.size+u*(H+p.size*2), x=p.x+Math.sin(T*p.sp+p.ph)*p.sw;
+        p.el.style.opacity=still?Math.sin(u*Math.PI).toFixed(2):1;
+        p.el.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) rotate('+(p.r0+T*p.vr).toFixed(1)+'deg)';
+      });
+      if(T<4) return true;
+      layer.remove(); rainOn=false; return false;
+    });
+    if(window.__ej&&window.__ej.frolic) window.__ej.frolic(4000);
+  }
+
+  /* ---------- EJ logo: 5 clicks within 3 seconds ---------- */
+  const logoHits=[];
+  document.addEventListener('click',(e)=>{
+    const l=e.target.closest&&e.target.closest('.logo,footer .mono-box'); if(!l) return;
+    const now=Date.now(); logoHits.push(now); while(logoHits.length&&now-logoHits[0]>3000) logoHits.shift();
+    if(logoHits.length<5) return;
+    logoHits.length=0; e.preventDefault();
+    const r=l.getBoundingClientRect(); confetti(r.left+r.width/2,r.top+r.height/2);
+    toast("ok that's enough");
+  });
+
+  // the terminal's setTheme / noodles / confetti commands all come through here
   window.__ej=Object.assign(window.__ej||{},{
-    setTheme, fly:(c)=>window.__fly&&window.__fly(c),
-    noodles, confetti:()=>rain(['■','●','▲','★','◆'],70)
+    setTheme, fly:(c)=>window.__fly&&window.__fly(c), raf:sched.add,
+    noodles, confetti
   });
 
   /* roaming noodle bowl: drifts around the whole site. Tap it to chat, drag it and drop it: the dogs run over and eat it */
@@ -459,6 +642,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     drift();
   }
   function drop(){ // let go: the dogs run to the bowl, eat it, and it refills
+    buzz(16);
     const fed=ej().feedAt&&ej().feedAt(x+BW()/2,y+BW()/2,()=>{feeding=false;nb.classList.remove('empty');chat('refilled.');mt=setTimeout(drift,1500);});
     if(fed){feeding=true;nb.classList.add('empty');chat('go on then.');} else mt=setTimeout(drift,2500);
   }
@@ -470,7 +654,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   });
   nb.addEventListener('pointermove',(e)=>{
     if(!down) return;
-    if(!held&&Math.hypot(e.clientX-sx,e.clientY-sy)>6){held=true;nb.classList.add('held');chat('wheee');if(navigator.vibrate) try{navigator.vibrate(10);}catch(_){}}
+    if(!held&&Math.hypot(e.clientX-sx,e.clientY-sy)>6){held=true;nb.classList.add('held');chat('wheee');buzz(10);}
     if(held){x=clamp(e.clientX+scrollX-ox,4,(yard.clientWidth||innerWidth)-BW()-4);y=clamp(e.clientY+scrollY-oy,4,(yard.clientHeight||innerHeight)-BW()-4);place(0);}
   });
   const up=(e)=>{
@@ -487,12 +671,11 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
   const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const layer=document.createElement('div'); layer.id='klayer'; document.body.appendChild(layer);
   const BALL='<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#14141A" stroke-width="3"/><polygon points="20,11 29,17 26,28 14,28 11,17" fill="#14141A"/><path d="M20 11V4.5M29 17L35 14.5M26 28L30.5 33.5M14 28L9.5 33.5M11 17L5 14.5" stroke="#14141A" stroke-width="2.4" stroke-linecap="round"/></svg>';
-  const balls=[]; let raf=0, last=0;
+  const balls=[]; let off=null;
   const R=()=>innerWidth<600?14:18, G=1900;
   const floor=()=>innerHeight-R()-4;
   function kill(b){ if(b.dead) return; b.dead=true; b.el.remove(); b.sh.remove(); const i=balls.indexOf(b); if(i>-1) balls.splice(i,1); }
-  function wake(){ if(!raf&&!document.hidden&&balls.length){last=0;raf=requestAnimationFrame(step);} }
-  document.addEventListener('visibilitychange',wake);
+  function wake(){ if(!off&&balls.length) off=sched.add(step); }
   function spawn(x,y){
     while(balls.length>=2) kill(balls[0]);
     const r=R(), el=document.createElement('div'), sh=document.createElement('i');
@@ -513,9 +696,9 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     b.sh.style.transform='translate('+(b.x-r)+'px,'+(fy-r*.2)+'px) scale('+(1-h*.55)+',1)';
     b.sh.style.opacity=(.38*(1-h*.6)).toFixed(2);
   }
-  function step(t){
-    raf=0; if(document.hidden||!balls.length){last=0;return;}
-    const dt=Math.min(.033,((t-(last||t))/1000)||.016); last=t;
+  function step(t,dt0){
+    if(!balls.length){off=null;return false;}
+    const dt=Math.min(.033,dt0||.016);
     const r=R(), fl=floor(), W=innerWidth;
     balls.slice().forEach(b=>{
       b.age+=dt; b.vy+=G*dt; b.x+=b.vx*dt; b.y+=b.vy*dt;
@@ -534,7 +717,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       if(b.age>6&&!b.hold&&!b.fade){b.fade=true;b.el.style.opacity=0;b.sh.style.opacity=0;setTimeout(()=>kill(b),550);}
       place(b,1+.3*b.sq,1-.3*b.sq);
     });
-    if(balls.length) raf=requestAnimationFrame(step); else last=0;
+    if(!balls.length){off=null;return false;}
+    return true;
   }
   function chaseBall(b){
     const ej=window.__ej; if(!ej||!ej.chase||b.dead) return;
@@ -552,11 +736,11 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     if(document.getElementById('site')&&document.getElementById('site').hidden) return;
     if(typeof x!=='number'){x=innerWidth*(.25+Math.random()*.5);y=innerHeight*.6;}
     spawn(x,y);
-    if(navigator.vibrate){try{navigator.vibrate(10);}catch(_){}}
+    buzz(12);
   }
   window.__ej=Object.assign(window.__ej||{},{kick});
   // only empty space kicks: never links, buttons, inputs, cards, stamps, FAQ bars, the game, the terminal, dogs or the bowl
-  const IGN='a,button,input,textarea,select,label,summary,[role=button],[contenteditable],.card,.stamp,.bar,.faq,.zone,.scene,.arena,.term,.dog,.nbowl,.map,.frame,header,nav,.treat,.dog-hint,#bday,.tchip,#klayer';
+  const IGN='a,button,input,textarea,select,label,summary,[role=button],[contenteditable],.card,.stamp,.bar,.faq,.zone,.scene,.arena,.term,.dog,.nbowl,.map,.frame,header,nav,.treat,.dog-hint,#bday,.tchip,#klayer,.mono-box,#ej-toast';
   document.addEventListener('click',(e)=>{
     if(e.button||e.defaultPrevented||e.detail===0) return;
     if(Date.now()-(window.__ejT||0)<450) return;
@@ -658,18 +842,16 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     const v=[[Math.min(100,saves*10),saves],[seen/12*100,seen+'/12'],[energy,energy+'%'],[food,Math.round(food)+'%']];
     v.forEach((x,i)=>{$('#tm'+i).style.width=Math.max(4,Math.min(100,x[0]+w(i)))+'%';$('#tv'+i).textContent=x[1];});
   }
-  meters(); setInterval(meters,1000);
+  meters();
 
-  /* background fx: one rAF loop, paused off screen / hidden / reduced motion */
-  if(RM) return;
+  /* background fx and the meters share the one scheduler and only run while the terminal is on screen */
   const cv=$('#tcode'), cx=cv.getContext('2d'), ball=$('#tball'), plane=$('#tplane');
-  let vis=false, raf=0, cols=[], W=0, H=0, last=0;
+  let vis=false, cols=[], W=0, H=0, last=0, lastM=0, offFx=null, offM=null;
   const FS=14;
   function size(){W=cv.width=sec.clientWidth;H=cv.height=sec.clientHeight;cols=Array.from({length:Math.ceil(W/FS)},()=>Math.random()*H/FS);}
   size(); window.addEventListener('resize',size);
-  let bT=-1, pT=-1, nT=-1, t0=performance.now();
+  const t0=performance.now();
   function frame(t){
-    raf=0; if(!vis||document.hidden) return;
     const dark=root.dataset.theme==='dark';
     if(t-last>70){ last=t;
       cx.fillStyle=dark?'rgba(5,5,5,.12)':'rgba(255,255,255,.14)'; cx.globalCompositeOperation='destination-out';cx.fillRect(0,0,W,H);cx.globalCompositeOperation='source-over';
@@ -683,9 +865,182 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     const bp=(s%9)/3; if(bp<1){const x=-40+bp*(W+80), b=Math.abs(Math.sin(bp*Math.PI*4)), y=-b*90, sq=b<.15?1.35:1;
       ball.style.opacity=1; ball.style.transform='translate('+x+'px,'+y+'px) scale('+sq+','+(2-sq)+') rotate('+bp*900+'deg)';} else ball.style.opacity=0;
     const pp2=(s%20)/5; if(pp2<1){plane.style.opacity=1;plane.style.transform='translate('+(W+40-pp2*(W+120))+'px,'+(Math.sin(pp2*6)*10)+'px) scaleX(-1)';} else plane.style.opacity=0;
-    raf=requestAnimationFrame(frame);
   }
-  const go=()=>{if(vis&&!document.hidden&&!raf) raf=requestAnimationFrame(frame);};
-  new IntersectionObserver((es)=>{vis=es[0].isIntersecting;if(vis){size();go();}}).observe(sec);
-  document.addEventListener('visibilitychange',go);
+  const mTask=(t)=>{ if(t-lastM>=1000){ lastM=t; meters(); } };
+  new IntersectionObserver((es)=>{
+    vis=es[0].isIntersecting;
+    if(vis){ size(); if(!offM) offM=sched.add(mTask); if(!RM&&!offFx) offFx=sched.add(frame); }
+    else { if(offM) offM(); if(offFx) offFx(); offM=offFx=null; }
+  }).observe(sec);
+})();
+
+/* ---------- night sky: dark theme only ---------- */
+(function(){
+  const sky=document.getElementById('sky'), cv=document.getElementById('skyc'), site=document.getElementById('site'); if(!sky||!cv) return;
+  const cx=cv.getContext('2d'), moon=sky.querySelector('.moon'), shoot=sky.querySelector('.shoot');
+  const rnd=(function(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};})(20111130);
+  const TINT=['#FFFFFF','#FFFFFF','#E4ECFF','#E4ECFF','#FFF2D2','#BFF6FF','#E3FF7A'];
+  // three parallax layers: far (small, dim, barely moves), mid, near (bigger, brighter, moves the most)
+  const SPEC=[{n:78,r:[.5,.9],a:[.35,.62],k:.03,sp:[.5,1.3]},{n:46,r:[.8,1.3],a:[.55,.85],k:.07,sp:[.8,1.7]},{n:22,r:[1.3,2.1],a:[.75,1],k:.13,sp:[1,2.2]}];
+  const layers=SPEC.map(s=>({k:s.k,big:s.r[1]>1.5,st:Array.from({length:s.n},()=>({x:rnd(),y:rnd(),r:s.r[0]+rnd()*(s.r[1]-s.r[0]),a:s.a[0]+rnd()*(s.a[1]-s.a[0]),ph:rnd()*6.283,sp:s.sp[0]+rnd()*(s.sp[1]-s.sp[0]),c:TINT[Math.floor(rnd()*TINT.length)]}))}));
+  let W=0,H=0,dpr=1,sy=window.scrollY,siteH=0,stop=null,lastD=0,wait=12+Math.random()*13,fl=null,mp=-1;
+  const dark=()=>root.dataset.theme==='dark';
+  function size(){ dpr=Math.min(2,window.devicePixelRatio||1); W=window.innerWidth; H=window.innerHeight; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  function draw(tm,still){
+    cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,W,H);
+    const dens=Math.max(.5,Math.min(1,W*H/900000));             // a thinner sky on phones
+    layers.forEach(L=>{
+      const cut=Math.ceil(L.st.length*dens), shift=still?0:(sy*L.k)%H;
+      for(let i=0;i<cut;i++){
+        const s=L.st[i], x=s.x*W, y=(((s.y*H-shift)%H)+H)%H;    // wraps top to bottom, so it never runs out of sky
+        cx.globalAlpha=s.a*(still?1:.68+.32*Math.sin(tm*s.sp+s.ph)); cx.fillStyle=s.c;
+        cx.beginPath(); cx.arc(x,y,s.r,0,6.2832); cx.fill();
+        if(L.big){ cx.globalAlpha*=.45; cx.fillRect(x-s.r*3.2,y-.4,s.r*6.4,.8); cx.fillRect(x-.4,y-s.r*3.2,.8,s.r*6.4); }
+      }
+    });
+    cx.globalAlpha=1;
+  }
+  function placeMoon(p){ if(Math.abs(p-mp)<.0005) return; mp=p; moon.style.transform='translate3d('+(-p*14).toFixed(2)+'vw,'+(p*28).toFixed(2)+'vh,0)'; }
+  function task(t,dt){
+    placeMoon(Math.min(1,sy/Math.max(1,siteH-H)));              // the moon drifts slowly down and left as you scroll
+    if(t-lastD>=33){ lastD=t; draw(t/1000,false); }
+    wait-=dt;
+    if(!fl&&wait<=0){                                           // a shooting star every 12 to 25 seconds
+      const dir=Math.random()<.5?-1:1, th=(24+Math.random()*16)*Math.PI/180, dist=Math.min(W,620)*(.55+Math.random()*.35);
+      fl={t:0,dur:.85+Math.random()*.3,hx:W*(.15+Math.random()*.7),hy:H*(.04+Math.random()*.38),dx:dir*Math.cos(th)*dist,dy:Math.sin(th)*dist,rot:(dir>0?th:Math.PI-th)*180/Math.PI};
+    }
+    if(fl){
+      fl.t+=dt; const k=fl.t/fl.dur;
+      if(k>=1){ shoot.style.opacity=0; fl=null; wait=12+Math.random()*13; }
+      else{ const e=k*(2-k), o=k<.2?k/.2:1-(k-.2)/.8;
+        shoot.style.transform='translate3d('+(fl.hx+fl.dx*e-140).toFixed(1)+'px,'+(fl.hy+fl.dy*e).toFixed(1)+'px,0) rotate('+fl.rot.toFixed(1)+'deg)';
+        shoot.style.opacity=o.toFixed(2); }
+    }
+  }
+  function sync(){
+    const on=dark();
+    if(on&&!rmq.matches){ size(); if(!stop) stop=sched.add(task); return; }
+    if(stop){ stop(); stop=null; }
+    fl=null; shoot.style.opacity=0;
+    if(on){ size(); draw(0,true); placeMoon(0); }                // reduced motion: static stars, no drift, no shooting stars
+  }
+  window.addEventListener('scroll',()=>{ sy=window.scrollY; },{passive:true});
+  window.addEventListener('resize',()=>{ if(!dark()) return; size(); if(!stop) draw(0,true); });
+  if('ResizeObserver' in window&&site) new ResizeObserver((es)=>{ siteH=es[0].contentRect.height; }).observe(site);
+  new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['data-theme']});
+  if(rmq.addEventListener) rmq.addEventListener('change',sync);
+  sync();
+})();
+
+/* ---------- header: hamburger menu at 700px and below ---------- */
+(function(){
+  const hdr=document.getElementById('hdr'), btn=document.getElementById('burger'), nav=document.getElementById('nav'); if(!hdr||!btn||!nav) return;
+  const isOpen=()=>hdr.classList.contains('open');
+  function set(open,focusFirst){
+    hdr.classList.toggle('open',open); btn.setAttribute('aria-expanded',String(open)); btn.setAttribute('aria-label',open?'Close menu':'Open menu');
+    if(open&&focusFirst){ const a=nav.querySelector('a'); if(a) a.focus(); }
+  }
+  btn.addEventListener('click',(e)=>set(!isOpen(),e.detail===0));          // e.detail === 0: opened from the keyboard, so move focus into the panel
+  nav.addEventListener('click',(e)=>{ if(e.target.closest('a')) set(false); });   // closes after tapping a link
+  document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'&&isOpen()){ set(false); btn.focus(); } });
+  document.addEventListener('pointerdown',(e)=>{ if(isOpen()&&!hdr.contains(e.target)) set(false); });
+  matchMedia('(max-width:700px)').addEventListener('change',()=>set(false));
+})();
+
+/* ---------- scroll reveal: slide up + fade, small stagger, once only ---------- */
+(function(){
+  if(!('IntersectionObserver' in window)||rmq.matches) return;
+  const items=[...document.querySelectorAll('.sec > .lab, .sec > h2, .sec > p, .sec > .arena, .sec > .map, .sec > .term, #readout, #cards > .card, #stamps > .stamp, #faqs > .faq')];
+  if(!items.length) return;
+  const pending=new Set(items);
+  function show(el,i){
+    if(!pending.delete(el)) return;
+    const d=Math.min(i*70,350);
+    el.style.setProperty('--rd',d+'ms'); el.classList.add('in');
+    setTimeout(()=>{ el.classList.remove('rv','in'); el.style.removeProperty('--rd'); },d+750);   // done: hand the element back to its normal hover styles
+  }
+  const io=new IntersectionObserver((es)=>{
+    let i=0;
+    es.forEach((e)=>{ if(e.isIntersecting||e.boundingClientRect.top<0){ io.unobserve(e.target); show(e.target,e.isIntersecting?i++:0); } });
+  },{rootMargin:'0px 0px -6% 0px',threshold:.08});
+  items.forEach((el)=>{ el.classList.add('rv'); io.observe(el); });
+  // a jump (anchor link, restored scroll) can skip past things without ever intersecting: reveal whatever is now above the screen
+  let st=0;
+  window.addEventListener('scroll',()=>{ clearTimeout(st); st=setTimeout(()=>{ pending.forEach((el)=>{ if(el.getBoundingClientRect().bottom<0){ io.unobserve(el); show(el,0); } }); },160); },{passive:true});
+})();
+
+/* ---------- gentle card tilt (mouse only, max 4deg) ---------- */
+(function(){
+  if(!matchMedia('(hover:hover) and (pointer:fine)').matches||rmq.matches) return;
+  const MAX=4; let el=null, px=0, py=0, queued=false;
+  function reset(n){ if(!n) return; n.style.removeProperty('--rx'); n.style.removeProperty('--ry'); }
+  function apply(){
+    queued=false; if(!el) return false;
+    const r=el.getBoundingClientRect(); if(!r.width||!r.height) return false;
+    const fx=Math.max(0,Math.min(1,(px-r.left)/r.width)), fy=Math.max(0,Math.min(1,(py-r.top)/r.height));
+    el.style.setProperty('--rx',((.5-fy)*2*MAX).toFixed(2)+'deg'); el.style.setProperty('--ry',((fx-.5)*2*MAX).toFixed(2)+'deg');
+    return false;
+  }
+  document.addEventListener('pointermove',(e)=>{
+    if(e.pointerType!=='mouse') return;
+    const n=e.target.closest?e.target.closest('.card,.stamp'):null;
+    if(n!==el){ reset(el); el=n; }
+    if(!el) return;
+    px=e.clientX; py=e.clientY;
+    if(!queued){ queued=true; sched.add(apply); }       // one write per frame, on the shared loop
+  },{passive:true});
+  document.addEventListener('pointerleave',()=>{ reset(el); el=null; });
+})();
+
+/* ---------- little surprises: type "noodles", shake the phone ---------- */
+(function(){
+  const WORD='noodles'; let buf='', lastKey=0;
+  const typing=(n)=>!!(n&&n.nodeType===1&&(n.isContentEditable||n.closest('input,textarea,select,[contenteditable=""],[contenteditable="true"]')));
+  window.addEventListener('keydown',(e)=>{
+    if(e.ctrlKey||e.metaKey||e.altKey||e.isComposing||e.repeat) return;
+    if(typing(e.target)||typing(document.activeElement)){ buf=''; return; }     // never while an input is focused
+    if(!e.key||e.key.length!==1) return;
+    const now=Date.now(); if(now-lastKey>2000) buf=''; lastKey=now;
+    buf=(buf+e.key.toLowerCase()).slice(-WORD.length);
+    if(buf===WORD){ buf=''; const f=window.__ej&&window.__ej.noodles; if(f) f(); }
+  });
+
+  // shake => the dogs jump. Android and desktop just listen; iOS needs permission, asked politely on the first dog tap
+  const DM=window.DeviceMotionEvent; if(!DM) return;
+  let on=false, lx=null, ly=0, lz=0, hits=0, hitT=0, cool=0;
+  function onMotion(e){
+    const a=e.accelerationIncludingGravity; if(!a||a.x==null) return;
+    const now=performance.now();
+    if(lx!==null){
+      const d=Math.abs(a.x-lx)+Math.abs(a.y-ly)+Math.abs(a.z-lz);
+      if(d>26&&now>cool){
+        if(now-hitT>700) hits=0;
+        hits++; hitT=now;
+        if(hits>=3){ hits=0; cool=now+2000; const f=window.__ej&&window.__ej.jumpAll; if(f) f(); }
+      }
+    }
+    lx=a.x; ly=a.y; lz=a.z;
+  }
+  const attach=()=>{ if(on) return; on=true; window.addEventListener('devicemotion',onMotion,{passive:true}); };
+  const needsAsk=typeof DM.requestPermission==='function';
+  if(!needsAsk){ attach(); return; }
+  const KEY='ejMotion'; let asked=false;
+  const get=()=>{ try{return localStorage.getItem(KEY);}catch(e){return null;} };
+  const put=(v)=>{ try{localStorage.setItem(KEY,v);}catch(e){} };
+  function request(announce){
+    try{
+      DM.requestPermission().then((r)=>{
+        if(r==='granted'){ put('yes'); attach(); if(announce) toast('Shake your phone and the dogs jump.',{ms:2600}); }
+        else put('no');                                                       // denied: stay quiet
+      }).catch(()=>{ put('no'); });
+    }catch(e){}
+  }
+  window.__ej=Object.assign(window.__ej||{},{onDogTap(){
+    if(on||asked) return; asked=true;
+    const pref=get();
+    if(pref==='yes'){ request(false); return; }                                    // said yes before: iOS just re-confirms
+    if(pref) return;                                                          // asked or declined already: never nag
+    put('asked');
+    toast('Shake your phone to make the dogs jump? iOS will ask for motion access.',{ms:9000,buttons:[{label:'Sure',onClick:()=>request(true)},{label:'No thanks',onClick:()=>put('no')}]});
+  }});
 })();
