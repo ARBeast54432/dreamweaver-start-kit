@@ -140,7 +140,7 @@ const L = ['TOP LEFT', 'TOP MID', 'TOP RIGHT', 'LOW LEFT', 'LOW MID', 'LOW RIGHT
 const Q = ['Better luck next time.', 'Not today.', 'Nice try. Really.', 'Was that your best?', 'Too easy.', 'I saw that coming.', 'Cute.', 'Try the other corner. Same result.', 'Next.', 'Zero goals. Still zero.'];
 $('#zones').innerHTML = L.map((l, i) => '<button class="zone" data-z="' + i + '" aria-label="Shoot ' + l.toLowerCase() + '"></button>').join('');
 const gk = $('#gk'), ball = $('#ball'), speech = $('#speech');
-let busy = false, saves = 0, last = -1, timer, poseT;
+let busy = false, saves = 0, goals = 0, cheat = false, last = -1, timer, poseT;
 function rest() {
   busy = false;
   clearTimeout(poseT); gk.dataset.pose = 'ready';
@@ -148,19 +148,35 @@ function rest() {
   ball.style.left = '50%'; ball.style.top = '112%';
   speech.style.opacity = 0; $('#status').textContent = 'GO AGAIN.';
   document.querySelectorAll('.zone.hit').forEach((z) => z.classList.remove('hit'));
+  document.querySelector('.goal').classList.remove('scored');
+}
+// cheat on: the keeper dives the wrong way, to the far side of whatever you aimed at
+function wrongWay(z) {
+  const c = z % 3, row = Math.floor(Math.random() * 2);
+  const col = c === 0 ? 2 : c === 2 ? 0 : (Math.random() < .5 ? 0 : 2);
+  return row * 3 + col;
 }
 $('#zones').onclick = (e) => {
   const b = e.target.closest('.zone');
   if (!b || busy) return;
   busy = true;
-  const z = +b.dataset.z, col = z % 3;
-  gk.style.left = P[z][0] + '%'; gk.style.top = P[z][1] + '%';
+  const z = +b.dataset.z, kz = cheat ? wrongWay(z) : z, col = kz % 3;
+  gk.style.left = P[kz][0] + '%'; gk.style.top = P[kz][1] + '%';
   gk.style.transform = 'translate(-50%,-50%)';
-  // pick the pose for the zone you shot at, then celebrate once the save is made
-  gk.dataset.pose = z === 1 ? 'save-high' : z === 4 ? 'save-low' : col === 0 ? 'dive-left' : 'dive-right';
-  clearTimeout(poseT); poseT = setTimeout(() => { if (busy) gk.dataset.pose = 'celebrate'; }, 520);
+  // pick the pose for where the keeper goes, then celebrate once the save is made (no celebrating when she's beaten)
+  gk.dataset.pose = kz === 1 ? 'save-high' : kz === 4 ? 'save-low' : col === 0 ? 'dive-left' : 'dive-right';
+  clearTimeout(poseT); if (!cheat) poseT = setTimeout(() => { if (busy) gk.dataset.pose = 'celebrate'; }, 520);
   ball.style.left = P[z][0] + '%'; ball.style.top = P[z][1] + '%';
   b.classList.add('hit');
+  if (cheat) { // the keeper went the wrong way: it is a goal
+    goals++; $('#goals').textContent = goals; $('#status').textContent = 'GOAL!';
+    speech.textContent = 'u got lucky'; speech.style.opacity = 1;
+    document.querySelector('.goal').classList.add('scored');
+    if (window.__ej && window.__ej.confetti) window.__ej.confetti(undefined, undefined, 'drop');
+    buzz(20);
+    timer = setTimeout(rest, 2600);
+    return;
+  }
   let i = Math.floor(Math.random() * Q.length);
   if (i === last) i = (i + 1) % Q.length;
   last = i;
@@ -169,7 +185,9 @@ $('#zones').onclick = (e) => {
   buzz(14);
   timer = setTimeout(rest, 1400);
 };
-$('#reset').onclick = () => { clearTimeout(timer); saves = 0; $('#saves').textContent = 0; rest(); $('#status').textContent = 'PICK A SPOT.'; };
+$('#reset').onclick = () => { clearTimeout(timer); saves = 0; goals = 0; $('#saves').textContent = 0; $('#goals').textContent = 0; rest(); $('#status').textContent = 'PICK A SPOT.'; };
+
+window.__ej = Object.assign(window.__ej || {}, { cheat: (on) => { cheat = on === undefined ? !cheat : !!on; return cheat; } });
 
 /* ---------- passport ---------- */
 const pp = [['AE', 'UAE', 'Middle East'], ['IN', 'India', 'South Asia'], ['US', 'USA', 'North America'], ['OM', 'Oman', 'Middle East'], ['NL', 'Netherlands', 'Europe'], ['MY', 'Malaysia', 'Southeast Asia'], ['CH', 'Switzerland', 'Europe'], ['SG', 'Singapore', 'Southeast Asia'], ['AT', 'Austria', 'Europe'], ['BE', 'Belgium', 'Europe'], ['DE', 'Germany', 'Europe'], ['HU', 'Hungary', 'Europe']];
@@ -516,7 +534,8 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
 (function(){
   /* ---------- confetti: canvas, in the current theme's colours ---------- */
   let cfStop=null, cfId=0;
-  function confetti(ox,oy){
+  function confetti(ox,oy,mode){ // mode 'drop': a shower from the top of the screen instead of a burst
+    const drop=mode==='drop';
     const cs=getComputedStyle(root), cols=['--a1','--a2','--a3','--a4','--a5','--pop'].map(v=>cs.getPropertyValue(v).trim()).filter(Boolean);
     const W=innerWidth, H=innerHeight, dpr=Math.min(2,devicePixelRatio||1), id=++cfId, still=rmq.matches;
     if(cfStop){cfStop();cfStop=null;}
@@ -525,15 +544,22 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     cv.style.transition='none'; cv.style.opacity=1;
     cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
     const ctx=cv.getContext('2d'), x0=typeof ox==='number'?ox:W/2, y0=typeof oy==='number'?oy:H*.35;
-    const n=still?40:(W<600?90:150);
+    const n=still?40:drop?(W<600?80:130):(W<600?90:150);
     const ps=Array.from({length:n},()=>{
       const a=Math.random()*Math.PI*2, sp=260+Math.random()*640;
+      if(drop&&!still) return {x:Math.random()*W, y:-12-Math.random()*H*.3, vx:0, vy:200+Math.random()*220,
+        w:6+Math.random()*7, h:4+Math.random()*6, r:Math.random()*6.28, vr:(Math.random()-.5)*8, fl:Math.random()*6.28, c:cols[Math.floor(Math.random()*cols.length)]};
       return {x:still?Math.random()*W:x0, y:still?Math.random()*H*.75:y0, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-280,
         w:6+Math.random()*7, h:4+Math.random()*6, r:Math.random()*6.28, vr:(Math.random()-.5)*14, fl:Math.random()*6.28, c:cols[Math.floor(Math.random()*cols.length)]};
     });
     const draw=(alpha)=>{
       ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H); ctx.globalAlpha=alpha; ctx.lineWidth=1; ctx.strokeStyle='rgba(20,20,26,.55)';
-      ps.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.scale(1,Math.cos(p.fl));ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.strokeRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});
+      ps.forEach(p=>{
+        if(p.y<-24||p.y>H+24||p.x<-24||p.x>W+24) return;           // off screen: skip it
+        const cr=Math.cos(p.r), sr=Math.sin(p.r), sc=Math.cos(p.fl);   // rotate + flip in one transform
+        ctx.setTransform(dpr*cr,dpr*sr,-dpr*sr*sc,dpr*cr*sc,dpr*p.x,dpr*p.y);
+        ctx.fillStyle=p.c; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.strokeRect(-p.w/2,-p.h/2,p.w,p.h);
+      });
     };
     if(still){ // reduced motion: a still scatter that only fades
       draw(1);
@@ -541,12 +567,15 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       setTimeout(()=>{if(id===cfId) cv.remove();},2000);
       return;
     }
-    let T=0;
+    let T=0, t0=null;
     cfStop=sched.add((t,dt)=>{
+      if(t0===null) t0=t;
       T+=dt;
-      ps.forEach(p=>{p.vx*=1-dt*1.6;p.vy=p.vy*(1-dt*.9)+1400*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;p.fl+=dt*9;});
-      draw(T>1.5?Math.max(0,1-(T-1.5)/.5):1);
-      if(T<2) return true;
+      if(drop) ps.forEach(p=>{p.fl+=dt*7;p.vx=Math.sin(p.fl*.45)*45;p.vy+=(520-p.vy)*dt*1.1;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;});
+      else ps.forEach(p=>{p.vx*=1-dt*1.6;p.vy=p.vy*(1-dt*.9)+1400*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;p.fl+=dt*9;});
+      const dur=drop?3.2:2;
+      draw(T>dur-.5?Math.max(0,1-(T-(dur-.5))/.5):1);
+      if(T<dur&&(t-t0)/1000<dur*1.3) return true;   // a slow device still finishes close to on time
       cfStop=null; cv.remove(); return false;
     });
   }
@@ -768,7 +797,7 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
     dogs:()=>{const ds=(window.__ej&&window.__ej.dogs)||[];if(!ds.length) return print('no dogs found. suspicious.');ds.forEach(d=>print('&gt; '+esc(dogWhere(d))));},
     cook:()=>{print('Asian cuisine. Mostly noodles. It turns out well.');print('<pre class="tbowl"><span class="stm">  ) ) )\n ( ( (</span>\n.-~~~~~-.\n\\_______/</pre>');},
     travel:()=>print(pp.map(p=>p[0]+' '+esc(p[1])).join(' · ')+'<br>12 countries.'),
-    keeper:()=>print('Goals conceded: 0. Saves this session: '+esc($('#saves').textContent)+'.'),
+    keeper:()=>{const g=+($('#goals').textContent)||0;print('Goals conceded: '+g+'. Saves this session: '+esc($('#saves').textContent)+'.'+(g?' She says it was luck.':''));},
     stem:()=>print('Science stream. Next stop: engineering.'),
     whoami:()=>print('visitor. probably about to lose a penalty.'),
     date:()=>print(esc(new Date().toString())),
@@ -785,9 +814,16 @@ $('#stamps').addEventListener('click',(e)=>{const b=e.target.closest('.stamp'); 
       setTimeout(()=>ej('fly',c),RM?0:500); print('route set: → '+c+' ('+esc(p[1])+'). wheels up.');},
     kick:()=>{ej('kick');print('kick. the dogs noticed.');},
     noodles:()=>{ej('noodles');print('noodle rain. you asked for this.');},
-    confetti:()=>{ej('confetti');print('confetti.');}
+    confetti:()=>{ej('confetti');print('confetti.');},
+    // secret: not in help, not in tab-complete. toggles. `letmewin off` / `letmewin on` also work
+    letmewin:(a)=>{
+      const on=ej('cheat',a==='off'?false:a==='on'?true:undefined);
+      if(on){print('cheat on. the keeper is looking the wrong way now.');print('go score. she will have something to say.');
+        const g=$('#game'); if(g) setTimeout(()=>g.scrollIntoView({behavior:RM?'auto':'smooth',block:'center'}),RM?0:600);}
+      else print('cheat off. the keeper is paying attention again.');
+    }
   };
-  const names=Object.keys(C);
+  const names=Object.keys(C).filter(n=>n!=='letmewin');
   const hist=[];let hi=0;
   function run(raw){
     const line=raw.trim(); print('<span class="tps">$</span> '+esc(line),'tcmd');
